@@ -1,17 +1,12 @@
 from twisted.internet import reactor
-import Acceptor
-import Proposer
+import PaxosNode
 
 '''
-    Initialize a paxos node consisting of an acceptor and a proposer. 
-    Parse proposer port and acceptor port from input or config file. 
+    Initialize a paxos node. 
+    Parse port on which the node should listen from input or config file. 
 '''
 
-# create an acceptor which just listens on the given port
-reactor.listenTCP(8001, Acceptor.AcceptorFactory())
-
-# create a proposer which listens on the given port (to handle request messages)
-reactor.listenTCP(8002, Proposer.ProposerFactory())
-
+# create a paxos node which just listens on the given port
+reactor.listenTCP(8001, PaxosNode.PaxosNodeFactory())
 
 reactor.run()

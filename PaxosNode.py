@@ -1,7 +1,11 @@
 from twisted.internet import protocol
 
+'''
+       This class implements the underling communication between paxos nodes 
+       i.e defines how a paxos node handles an incoming message. 
+'''
 
-class Proposer(protocol.Protocol):
+class PaxosNode(protocol.Protocol):
     def __init__(self, factory):
         self.factory = factory
 
@@ -12,8 +16,6 @@ class Proposer(protocol.Protocol):
         print("Connection made")
 
 
-class ProposerFactory(protocol.ClientFactory):
+class PaxosNodeFactory(protocol.ClientFactory):
     def buildProtocol(self, addr):
-        print("Connected")
-        return Proposer(self)
-
+        return PaxosNode(self)
