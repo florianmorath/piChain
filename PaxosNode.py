@@ -1,11 +1,13 @@
 from twisted.internet import protocol
+from PaxosProtocol import Node
 
-'''
+"""
        This class implements the underling communication between paxos nodes 
        i.e defines how a paxos node handles an incoming message. 
-'''
+"""
 
-class PaxosNode(protocol.Protocol):
+
+class PaxosNodeProtocol(protocol.Protocol):
     def __init__(self, factory):
         self.factory = factory
 
@@ -14,8 +16,19 @@ class PaxosNode(protocol.Protocol):
 
     def connectionMade(self):
         print("Connection made")
+        """ add self to peers if no connection to this peer yet """
+
+    def broadcast(self):
+        for peer in self.factory.peers.items():
+            if peer[1] != self:
+                """ peer[1].transport.write(...) """
 
 
 class PaxosNodeFactory(protocol.ClientFactory):
+    def __init__(self):
+        self.node = Node()
+        """ dict: node id -> PaxosNodeProtocol (can be used to broadcast messages: self.factory.peers[data] = self) """
+        self.peers = {}
+
     def buildProtocol(self, addr):
-        return PaxosNode(self)
+        return PaxosNodeProtocol(self)
