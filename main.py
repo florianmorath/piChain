@@ -7,6 +7,6 @@ import PaxosNode
 """
 
 # create a paxos node which just listens on the given port
-reactor.listenTCP(8001, PaxosNode.PaxosNodeFactory())
+reactor.listenTCP(8001, PaxosNode.PaxosNodeFactory(4))
 
 reactor.run()

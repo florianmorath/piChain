@@ -29,8 +29,8 @@ class PaxosNodeProtocol(protocol.Protocol):
 class PaxosNodeFactory(protocol.ClientFactory):
     ''' keeps consistent state among multiple PaxosNodeProtocol instances. '''
 
-    def __init__(self):
-        self.node = Node()
+    def __init__(self, n):
+        self.node = Node(n)
         """ dict: node id -> PaxosNodeProtocol (can be used to broadcast messages: self.factory.peers[data] = self) """
         self.peers = {}
 
