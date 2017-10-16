@@ -14,6 +14,8 @@ class PaxosNodeProtocol(protocol.Protocol):
     def dataReceived(self, data):
         print("Received data: ", data)
 
+
+
     def connectionMade(self):
         print("Connection made")
         """ add self to peers if no connection to this peer yet """
@@ -25,6 +27,8 @@ class PaxosNodeProtocol(protocol.Protocol):
 
 
 class PaxosNodeFactory(protocol.ClientFactory):
+    ''' keeps consistent state among multiple PaxosNodeProtocol instances. '''
+
     def __init__(self):
         self.node = Node()
         """ dict: node id -> PaxosNodeProtocol (can be used to broadcast messages: self.factory.peers[data] = self) """
