@@ -1,3 +1,5 @@
+import itertools
+
 """
     This module implements the logic of the paxos algorithm.
 """
@@ -8,9 +10,11 @@ SLOW = 2
 
 
 class Block:
-    def __init__(self, creator_id, seq, parent, txs):
+    new_seq = itertools.count()
+
+    def __init__(self, creator_id, parent, txs):
         self.creator_id = creator_id
-        self.SEQ = seq
+        self.SEQ = next(Block.new_seq)
         self.parent = parent  # pointer to a parent block
         self.txs = txs  # list of transactions of type Transaction
 
@@ -30,11 +34,16 @@ class Block:
         return self.creator_id < other.creator_id
 
 
+GENESIS = Block(-1, None, [])
+
+
 class Transaction:
-    def __init__(self, creator_od, seq, content):
-        self.creator_id = creator_od
-        self.SEQ = seq
-        self.content = content
+    new_seq = itertools.count()
+
+    def __init__(self, creator_id, content):
+        self.creator_id = creator_id
+        self.SEQ = next(Transaction.new_seq)
+        self.content = content  # a string which can represent a command for example
 
 
 class Message:
@@ -43,17 +52,20 @@ class Message:
 
 
 class Node:
+    new_id = itertools.count()
+
     def __init__(self):
+        self.id = next(Node.new_id)
         self.state = QUICK
 
     def receive_message(self, message):
-        ''' receive a message of type Message. Return answer of type Message. '''
+        """Receive a message of type Message. Return answer of type Message."""
 
     def receive_transaction(self, txn):
-        ''' react on a received txn depending on '''
+        """ react on a received txn depending on"""
 
     def receive_block(self, block):
-        ''' react on a received block '''
+        """ react on a received block """
 
 
 
