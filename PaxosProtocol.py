@@ -1,6 +1,5 @@
 import itertools
 import random
-import threading
 
 """
     This module implements the logic of the paxos algorithm.
@@ -74,15 +73,16 @@ class Node:
         """Receive a message of type Message. Return answer of type Message."""
         # TODO implement receive message
 
-    # def receive_transaction(self, txn):
-    #     """React on a received txn depending on state"""
-    #     # check if txn has already been seen included in a block
-    #     if not self.txn_seen(txn):
-    #         # add txn to set of new txs
-    #         self.new_txs.add(txn)
-    #
-    #         # callback after timeout of length get_patience: not txn_seen implies create_block
-    #         threading.Timer(self.get_patience(), self.create_block())
+    def receive_transaction(self, txn):
+        """React on a received txn depending on state"""
+        # check if txn has already been seen included in a block
+        if not self.txn_seen(txn):
+            # add txn to set of new txs
+            self.new_txs.add(txn)
+
+            # callback after timeout of length get_patience: not txn_seen implies create_block
+            # threading.Timer(self.get_patience(), self.create_block())
+            # handle timeout in PaxosNode class with Twisted 
 
     def receive_block(self, block):
         """React on a received block """
@@ -129,5 +129,9 @@ class Node:
 
     def txn_seen(self, txn):
         """Check if the txn has already been included in a block. Return True if yes."""
-        # TODO implement txn_seen
-        return True
+        txn_seen = False
+        for block in self.blocks:
+            for tx in block.txs:
+                if tx.creator_id == txn.creator_id and tx.SEQ == txn.SEQ:
+                    txn_seen = True
+        return txn_seen
