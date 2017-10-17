@@ -101,7 +101,6 @@ class Node:
                 try_ok = Message('TRY_OK', False, message.request_seq)
                 try_ok.prop_block = self.s_prop_block
                 try_ok.supp_block = self.s_supp_block
-
                 return try_ok
             return None
 
@@ -135,7 +134,6 @@ class Node:
                 propose = Message('PROPOSE', True, self.c_request_seq)
                 propose.com_block = self.c_com_block
                 propose.new_block = self.c_new_block
-
                 return propose
             return None
 
@@ -150,7 +148,23 @@ class Node:
                 propose_ack.com_block = message.com_block
                 return propose_ack
             return None
-    
+
+        elif message.msg_type == 'PROPOSE_ACK':
+            # check if message is not outdated
+            if message.request_seq != self.c_request_seq:
+                # outdated message
+                return None
+
+            self.c_votes += 1
+            if self.c_votes > self.n / 2:
+                # ignore further answers
+                self.c_request_seq += 1
+
+                # create commit message
+                commit = Message('COMMIT', True, self.c_request_seq)
+                commit.com_block = message.com_block
+                return commit
+
     def receive_transaction(self, txn):
         """React on a received txn depending on state"""
         # check if txn has already been seen included in a block
