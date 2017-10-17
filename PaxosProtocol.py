@@ -75,6 +75,8 @@ class Node:
         self.blocks = set()  # all blocks seen by the node
         self.n = n  # total number of nodes
 
+        self.committed_blocks = [GENESIS]
+
         # node acting as server
         self.s_max_block = GENESIS  # deepest block seen in round 1 (like T_max)
         self.s_prop_block = None  # stored block from a valid propose message
@@ -164,6 +166,10 @@ class Node:
                 commit = Message('COMMIT', True, self.c_request_seq)
                 commit.com_block = message.com_block
                 return commit
+            return None
+
+        elif message.msg_type == 'COMMIT':
+            self.committed_blocks = message.com_block
 
     def receive_transaction(self, txn):
         """React on a received txn depending on state"""
