@@ -53,7 +53,7 @@ class Transaction:
 
 class Message:
     def __init__(self, msg_type, broadcast, request_seq):
-        self.msg_type = msg_type  # try, ok, propose, ack, commit
+        self.msg_type = msg_type  # TRY, TRY_OK, PROPOSE, PROPOSE_ACK, COMMIT
         self.broadcast = broadcast  # bool
         self.request_seq = request_seq
 
@@ -82,24 +82,62 @@ class Node:
 
         # node acting as client
         self.c_new_block = None  # block which client (a quick node) wants to commit next
+        self.c_com_block = None  # temporary compromise block
         self.c_request_seq = 0  # Voting round number
+        self.c_votes = 0  # used to check if majority is already reached
+        self.c_prop_block = None  # propose block with deepest support block the client has seen in round 2
+        self.c_supp_block = None
 
     # main methods
 
     def receive_message(self, message):
-        """Receive a message of type Message. Return answer of type Message."""
+        """Receive a message of type Message. Return answer of type Message or None of majority not yet reached"""
         # TODO implement receive message
         if message.msg_type == 'TRY':
             if self.s_max_block < message.new_block:
                 self.s_max_block = message.new_block
 
                 # create an ok-message
-                ok = Message('ok', False, message.request_seq)
+                ok = Message('TRY_OK', False, message.request_seq)
                 ok.prop_block = self.s_prop_block
                 ok.supp_block = self.s_supp_block
 
                 return ok
-        return None
+            return None
+
+        elif message.msg_type == 'TRY_OK':
+            # check if message is not outdated
+            if message.request_seq != self.c_request_seq:
+                # outdated message
+                return None
+
+            self.c_votes += 1
+            if self.c_votes > self.n / 2:
+
+                # start new round
+                self.c_votes = 0
+                self.c_request_seq += 1
+
+                # the compromise block will be the block we are going to propose in the end
+                self.c_com_block = self.c_new_block
+
+                # if TRY_OK message contains a propose block, we will support it if it is the first received
+                # or if its support block is deeper than the one already stored
+                if message.supp_block and self.c_supp_block and self.c_supp_block < message.supp_block:
+                    self.c_supp_block = message.supp_block
+                    self.c_prop_block = message.prop_block
+
+                # check if we need to support another block instead of the new block
+                if self.c_prop_block:
+                    self.c_com_block = self.c_prop_block
+
+                # create propose message
+                propose = Message('PROPOSE', True, self.c_request_seq)
+                propose.com_block = self.c_com_block
+                propose.new_block = self.c_new_block
+
+                return propose
+            return None
 
     def receive_transaction(self, txn):
         """React on a received txn depending on state"""
