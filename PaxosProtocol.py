@@ -97,12 +97,12 @@ class Node:
             if self.s_max_block < message.new_block:
                 self.s_max_block = message.new_block
 
-                # create an ok-message
-                ok = Message('TRY_OK', False, message.request_seq)
-                ok.prop_block = self.s_prop_block
-                ok.supp_block = self.s_supp_block
+                # create a TRY_OK message
+                try_ok = Message('TRY_OK', False, message.request_seq)
+                try_ok.prop_block = self.s_prop_block
+                try_ok.supp_block = self.s_supp_block
 
-                return ok
+                return try_ok
             return None
 
         elif message.msg_type == 'TRY_OK':
@@ -131,7 +131,7 @@ class Node:
                 if self.c_prop_block:
                     self.c_com_block = self.c_prop_block
 
-                # create propose message
+                # create PROPOSE message
                 propose = Message('PROPOSE', True, self.c_request_seq)
                 propose.com_block = self.c_com_block
                 propose.new_block = self.c_new_block
@@ -139,6 +139,18 @@ class Node:
                 return propose
             return None
 
+        elif message.msg_type == 'PROPOSE':
+            # if did not receive a try message with a deeper new block in mean time can store proposed block on server
+            if message.new_block.depth == self.s_max_block.depth:
+                self.s_prop_block = message.com_block
+                self.s_supp_block = message.new_block
+
+                # create a PROPOSE_ACK message
+                propose_ack = Message('PROPOSE_ACK', False, message.request_seq)
+                propose_ack.com_block = message.com_block
+                return propose_ack
+            return None
+    
     def receive_transaction(self, txn):
         """React on a received txn depending on state"""
         # check if txn has already been seen included in a block
