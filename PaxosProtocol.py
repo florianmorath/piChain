@@ -52,8 +52,16 @@ class Transaction:
 
 
 class Message:
-    def __init__(self, message_type):
-        self.message_type = message_type  # try, ok, propose, ack, commit
+    def __init__(self, msg_type, broadcast, request_seq):
+        self.msg_type = msg_type  # try, ok, propose, ack, commit
+        self.broadcast = broadcast  # bool
+        self.request_seq = request_seq
+
+        # content: are assigned depending on message type
+        self.new_block = None
+        self.prop_block = None
+        self.supp_block = None
+        self.com_block = None
 
 
 class Node:
@@ -67,11 +75,31 @@ class Node:
         self.blocks = set()  # all blocks seen by the node
         self.n = n  # total number of nodes
 
+        # node acting as server
+        self.s_max_block = GENESIS  # deepest block seen in round 1 (like T_max)
+        self.s_prop_block = None  # stored block from a valid propose message
+        self.s_supp_block = None  # block supporting proposed block (like T_store)
+
+        # node acting as client
+        self.c_new_block = None  # block which client (a quick node) wants to commit next
+        self.c_request_seq = 0  # Voting round number
+
     # main methods
 
     def receive_message(self, message):
         """Receive a message of type Message. Return answer of type Message."""
         # TODO implement receive message
+        if message.msg_type == 'TRY':
+            if self.s_max_block < message.new_block:
+                self.s_max_block = message.new_block
+
+                # create an ok-message
+                ok = Message('ok', False, message.request_seq)
+                ok.prop_block = self.s_prop_block
+                ok.supp_block = self.s_supp_block
+
+                return ok
+        return None
 
     def receive_transaction(self, txn):
         """React on a received txn depending on state"""
@@ -82,7 +110,7 @@ class Node:
 
             # callback after timeout of length get_patience: not txn_seen implies create_block
             # threading.Timer(self.get_patience(), self.create_block())
-            # handle timeout in PaxosNode class with Twisted 
+            # handle timeout in PaxosNode class with Twisted
 
     def receive_block(self, block):
         """React on a received block """
