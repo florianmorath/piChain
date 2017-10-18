@@ -57,7 +57,7 @@ class Message:
         self.broadcast = broadcast  # bool
         self.request_seq = request_seq
 
-        # content: are assigned depending on message type
+        # content variables: are assigned depending on message type
         self.new_block = None
         self.prop_block = None
         self.supp_block = None
@@ -94,7 +94,6 @@ class Node:
 
     def receive_message(self, message):
         """Receive a message of type Message. Return answer of type Message or None of majority not yet reached"""
-        # TODO implement receive message
         if message.msg_type == 'TRY':
             if self.s_max_block < message.new_block:
                 self.s_max_block = message.new_block
@@ -178,12 +177,23 @@ class Node:
             # add txn to set of new txs
             self.new_txs.add(txn)
 
+            # TODO timeout handling -> see readjust_timeout (gammachain)
+            # timeout handling
             # callback after timeout of length get_patience: not txn_seen implies create_block
             # threading.Timer(self.get_patience(), self.create_block())
             # handle timeout in PaxosNode class with Twisted
 
     def receive_block(self, block):
         """React on a received block """
+
+        # demote node if necessary
+        if self.head_block < block or block.creator_state == QUICK:
+            self.state = SLOW
+
+        # block must be ancestor of last committed block and deeper than head_block
+        # TODO reject block if on discarded fork or not deeper than head_block
+
+        # TODO update head_block, also see move_to_block -> update known and new txs
         # add block to set of blocks seen so far
         self.blocks.add(block)
 
@@ -191,16 +201,15 @@ class Node:
         if self.head_block < block:
             self.head_block = block
 
-        # demote node if necessary
-        if self.head_block < block or block.creator_state == QUICK:
-            self.state = SLOW
-
     # helper methods
 
     def create_block(self):
         """Create a block containing new txs and return it."""  # create block
         b = Block(self.id, self.head_block, list(self.new_txs))
         self.new_txs.clear()
+
+        # add block to set of blocks seen so far
+        self.blocks.add(b)
 
         # promote node
         self.state = max(QUICK, self.state - 1)
@@ -227,6 +236,7 @@ class Node:
 
     def txn_seen(self, txn):
         """Check if the txn has already been included in a block. Return True if yes."""
+        # TODO remove self.blocks and get known txs starting from head_block and going over his parents
         txn_seen = False
         for block in self.blocks:
             for tx in block.txs:
