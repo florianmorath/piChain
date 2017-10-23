@@ -18,11 +18,15 @@ class PaxosNodeProtocol(protocol.Protocol):
         print("Connection made")
         # add self to peers if no connection to this peer yet
 
-    def broadcast(self):
+    def broadcast(self, obj):
         for peer in self.factory.peers.items():
             if peer[1] != self:
                 print('broadcast')
                 # peer[1].transport.write(...)
+
+    def respond(self, obj):
+        """obj is an instance of type Message, Block or Transaction which will be responded to to the peer
+        which has send the request. """
 
 
 class PaxosNodeFactory(protocol.ClientFactory):
@@ -30,7 +34,7 @@ class PaxosNodeFactory(protocol.ClientFactory):
 
     def __init__(self, n):
         self.node = Node(n)
-        # dict: node id -> PaxosNodeProtocol (can be used to broadcast messages: self.factory.peers[data] = self)
+        # dict: node id -> PaxosNode (can be used to broadcast messages: self.factory.peers[data] = self)
         self.peers = {}
 
     def buildProtocol(self, addr):

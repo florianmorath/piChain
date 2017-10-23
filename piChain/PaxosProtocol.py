@@ -1,5 +1,6 @@
 import itertools
 import random
+from .PaxosNode import PaxosNodeProtocol
 
 """
     This module implements the logic of the paxos algorithm.
@@ -54,7 +55,6 @@ class Transaction:
 class Message:
     def __init__(self, msg_type, broadcast, request_seq):
         self.msg_type = msg_type  # TRY, TRY_OK, PROPOSE, PROPOSE_ACK, COMMIT
-        self.broadcast = broadcast  # bool
         self.request_seq = request_seq
 
         # content variables: are assigned depending on message type
@@ -64,10 +64,13 @@ class Message:
         self.com_block = None
 
 
-class Node:
+class Node(PaxosNodeProtocol):
     new_id = itertools.count()
 
-    def __init__(self, n):
+    def __init__(self, n, factory):
+
+        super().__init__(factory)
+
         self.id = next(Node.new_id)
         self.state = QUICK
         self.new_txs = set()  # txs not yet in a block
@@ -92,24 +95,33 @@ class Node:
 
     # main methods
 
+    def broadcast(self, obj):
+        """obj is an instance of type Message, Block or Transaction which will be broadcast to all peers.
+         Method will be implemented in superclass."""
+        raise NotImplementedError("Superclass should implement this!")
+
+    def respond(self, obj):
+        """obj is an instance of type Message, Block or Transaction which will be responded to to the peer
+        which has send the request. Method will be implemented in superclass."""
+        raise NotImplementedError("Superclass should implement this!")
+
     def receive_message(self, message):
-        """Receive a message of type Message. Return answer of type Message or None of majority not yet reached"""
+        """Receive a message of type Message"""
         if message.msg_type == 'TRY':
             if self.s_max_block < message.new_block:
                 self.s_max_block = message.new_block
 
                 # create a TRY_OK message
-                try_ok = Message('TRY_OK', False, message.request_seq)
+                try_ok = Message('TRY_OK', message.request_seq)
                 try_ok.prop_block = self.s_prop_block
                 try_ok.supp_block = self.s_supp_block
-                return try_ok
-            return None
+                self.respond(try_ok)
 
         elif message.msg_type == 'TRY_OK':
             # check if message is not outdated
             if message.request_seq != self.c_request_seq:
                 # outdated message
-                return None
+                return
 
             self.c_votes += 1
             if self.c_votes > self.n / 2:
@@ -132,11 +144,10 @@ class Node:
                     self.c_com_block = self.c_prop_block
 
                 # create PROPOSE message
-                propose = Message('PROPOSE', True, self.c_request_seq)
+                propose = Message('PROPOSE', self.c_request_seq)
                 propose.com_block = self.c_com_block
                 propose.new_block = self.c_new_block
-                return propose
-            return None
+                self.broadcast(propose)
 
         elif message.msg_type == 'PROPOSE':
             # if did not receive a try message with a deeper new block in mean time can store proposed block on server
@@ -145,16 +156,15 @@ class Node:
                 self.s_supp_block = message.new_block
 
                 # create a PROPOSE_ACK message
-                propose_ack = Message('PROPOSE_ACK', False, message.request_seq)
+                propose_ack = Message('PROPOSE_ACK', message.request_seq)
                 propose_ack.com_block = message.com_block
-                return propose_ack
-            return None
+                self.respond(propose_ack)
 
         elif message.msg_type == 'PROPOSE_ACK':
             # check if message is not outdated
             if message.request_seq != self.c_request_seq:
                 # outdated message
-                return None
+                return
 
             self.c_votes += 1
             if self.c_votes > self.n / 2:
@@ -162,10 +172,9 @@ class Node:
                 self.c_request_seq += 1
 
                 # create commit message
-                commit = Message('COMMIT', True, self.c_request_seq)
+                commit = Message('COMMIT', self.c_request_seq)
                 commit.com_block = message.com_block
-                return commit
-            return None
+                self.broadcast(commit)
 
         elif message.msg_type == 'COMMIT':
             self.committed_blocks = message.com_block
