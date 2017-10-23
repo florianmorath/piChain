@@ -53,7 +53,7 @@ class Transaction:
 
 
 class Message:
-    def __init__(self, msg_type, broadcast, request_seq):
+    def __init__(self, msg_type, request_seq):
         self.msg_type = msg_type  # TRY, TRY_OK, PROPOSE, PROPOSE_ACK, COMMIT
         self.request_seq = request_seq
 
@@ -73,11 +73,12 @@ class Node(PaxosNodeProtocol):
 
         self.id = next(Node.new_id)
         self.state = QUICK
+        self.n = n  # total number of nodes
+
+        self.known_txs = set()   # all txs seen so far
         self.new_txs = set()  # txs not yet in a block
         self.head_block = GENESIS  # deepest block in the block tree (head of the blockchain)
         self.blocks = set()  # all blocks seen by the node
-        self.n = n  # total number of nodes
-
         self.committed_blocks = [GENESIS]
 
         # node acting as server
@@ -183,15 +184,13 @@ class Node(PaxosNodeProtocol):
     def receive_transaction(self, txn):
         """React on a received txn depending on state"""
         # check if txn has already been seen included in a block
-        if not self.txn_seen(txn):
-            # add txn to set of new txs
+        if txn not in self.known_txs:
+            # add txn to set of new txs and set of seen txs
             self.new_txs.add(txn)
+            self.known_txs.add(txn)
 
             # TODO timeout handling -> see readjust_timeout (gammachain)
             # timeout handling
-            # callback after timeout of length get_patience: not txn_seen implies create_block
-            # threading.Timer(self.get_patience(), self.create_block())
-            # handle timeout in PaxosNode class with Twisted
 
     def receive_block(self, block):
         """React on a received block """
@@ -243,13 +242,3 @@ class Node(PaxosNodeProtocol):
                                       (2. + EPSILON) * EXPECTED_RTT +
                                       self.n * EXPECTED_RTT * 0.5)
         return patience
-
-    def txn_seen(self, txn):
-        """Check if the txn has already been included in a block. Return True if yes."""
-        # TODO remove self.blocks and get known txs starting from head_block and going over his parents
-        txn_seen = False
-        for block in self.blocks:
-            for tx in block.txs:
-                if tx.creator_id == txn.creator_id and tx.SEQ == txn.SEQ:
-                    txn_seen = True
-        return txn_seen
