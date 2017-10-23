@@ -1,6 +1,8 @@
 import itertools
 import random
 from .PaxosNode import PaxosNodeProtocol
+from twisted.internet.task import deferLater
+from twisted.internet import reactor
 
 """
     This module implements the logic of the paxos algorithm.
@@ -72,14 +74,16 @@ class Node(PaxosNodeProtocol):
         super().__init__(factory)
 
         self.id = next(Node.new_id)
-        self.state = QUICK
+        self.state = SLOW
         self.n = n  # total number of nodes
 
         self.known_txs = set()   # all txs seen so far
-        self.new_txs = set()  # txs not yet in a block
+        self.new_txs = []  # txs not yet in a block, behaving like a queue
         self.head_block = GENESIS  # deepest block in the block tree (head of the blockchain)
         self.blocks = set()  # all blocks seen by the node
         self.committed_blocks = [GENESIS]
+        self.slow_timeout = None    # fix timeout of a slow node (u.a.r only once)
+        self.oldest_txn = None  # txn which started a timeout
 
         # node acting as server
         self.s_max_block = GENESIS  # deepest block seen in round 1 (like T_max)
@@ -185,12 +189,16 @@ class Node(PaxosNodeProtocol):
         """React on a received txn depending on state"""
         # check if txn has already been seen included in a block
         if txn not in self.known_txs:
-            # add txn to set of new txs and set of seen txs
-            self.new_txs.add(txn)
+            # add txn to set of seen txs
             self.known_txs.add(txn)
 
             # TODO timeout handling -> see readjust_timeout (gammachain)
             # timeout handling
+            self.new_txs.append(txn)
+            if len(self.new_txs) == 1:
+                self.oldest_txn = txn
+                # start a timeout
+                deferLater(reactor, self.get_patience(), self.timeout_over(), txn)
 
     def receive_block(self, block):
         """React on a received block """
@@ -209,6 +217,12 @@ class Node(PaxosNodeProtocol):
         # readjust head block if necessary
         if self.head_block < block:
             self.head_block = block
+
+        # timeout readjustment
+        if len(self.new_txs) != 0 and self.new_txs[0] != self.oldest_txn:
+                self.oldest_txn = self.new_txs[0]
+                # start a timeout
+                deferLater(reactor, self.get_patience(), self.timeout_over(), self.new_txs[0])
 
     # helper methods
 
@@ -238,7 +252,18 @@ class Node(PaxosNodeProtocol):
             patience = (1 + EPSILON) * EXPECTED_RTT
 
         else:
-            patience = random.uniform((2. + EPSILON) * EXPECTED_RTT,
-                                      (2. + EPSILON) * EXPECTED_RTT +
-                                      self.n * EXPECTED_RTT * 0.5)
+            if self.slow_timeout is None:
+                patience = random.uniform((2. + EPSILON) * EXPECTED_RTT,
+                                        (2. + EPSILON) * EXPECTED_RTT +
+                                        self.n * EXPECTED_RTT * 0.5)
+                self.slow_timeout = patience
+            else:
+                patience = self.slow_timeout
         return patience
+
+    def timeout_over(self, txn):
+        """This function is called one a timeout is over."""
+        if txn in self.new_txs:
+            # create a new block
+            self.create_block()
+
