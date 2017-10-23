@@ -1,6 +1,6 @@
 import itertools
 import random
-from .PaxosNode import PaxosNodeProtocol
+from pichain.PaxosNode import PaxosNodeProtocol
 from twisted.internet.task import deferLater
 from twisted.internet import reactor
 
@@ -16,20 +16,35 @@ EXPECTED_RTT = 1.
 EPSILON = 0.001
 
 
+class Blocktree:
+    """Tree of blocks that is always in a consistent state"""
+    def __init__(self):
+        self.head_block = GENESIS  # deepest block in the block tree (head of the blockchain)
+        self.committed_block = GENESIS  # last committed block -> will indirectly define all committed blocks so far
+        self.nodes = {}  # dictionary from block_id to instance of type Block
+        self.nodes.update({GENESIS.block_id: GENESIS})
+
+    def move_to_block(self, target):
+        """Change to target block as new head block. If target is found on a forked path, have to broadcast txs
+         that wont be on the path from GENESIS to new head block anymore. Set depth field of new head"""
+        # TODO move_to_block
+
+    def commit(self, block):
+        """Commit block"""
+        # TODO change commited_block, move_to_block and reinitialize server variables
+
+
 class Block:
     new_seq = itertools.count()
 
-    def __init__(self, creator_id, parent, txs):
+    def __init__(self, creator_id, parent_block_id, txs):
         self.creator_id = creator_id
         self.SEQ = next(Block.new_seq)
+        self.block_id = int(str(self.creator_id) + str(self.SEQ))
         self.creator_state = None
-        self.parent = parent  # parent block
+        self.parent_block_id = parent_block_id  # parent block id (creator_id || SEQ)
         self.txs = txs  # list of transactions of type Transaction
-
-        if parent:
-            self.depth = parent.depth + len(txs)
-        else:
-            self.depth = 0
+        self.depth = None
 
     def __lt__(self, other):
         """Compare two blocks by depth and creator ID."""
@@ -64,6 +79,7 @@ class Message:
         self.prop_block = None
         self.supp_block = None
         self.com_block = None
+        self.last_committed_block = None
 
 
 class Node(PaxosNodeProtocol):
@@ -79,9 +95,10 @@ class Node(PaxosNodeProtocol):
 
         self.known_txs = set()   # all txs seen so far
         self.new_txs = []  # txs not yet in a block, behaving like a queue
-        self.head_block = GENESIS  # deepest block in the block tree (head of the blockchain)
-        self.blocks = set()  # all blocks seen by the node
-        self.committed_blocks = [GENESIS]
+
+        self.blocktree = Blocktree()
+        self.blocks = set()  # all blocks seen by the node (also discarded blocks are stored here)
+
         self.slow_timeout = None    # fix timeout of a slow node (u.a.r only once)
         self.oldest_txn = None  # txn which started a timeout
 
@@ -98,6 +115,8 @@ class Node(PaxosNodeProtocol):
         self.c_prop_block = None  # propose block with deepest support block the client has seen in round 2
         self.c_supp_block = None
 
+        self.commit_running = False
+
     # main methods
 
     def broadcast(self, obj):
@@ -113,6 +132,9 @@ class Node(PaxosNodeProtocol):
     def receive_message(self, message):
         """Receive a message of type Message"""
         if message.msg_type == 'TRY':
+            # make sure last commited block of sender is also commited by this node
+            self.blocktree.commit(message.last_committed_block)
+
             if self.s_max_block < message.new_block:
                 self.s_max_block = message.new_block
 
@@ -181,18 +203,19 @@ class Node(PaxosNodeProtocol):
                 commit.com_block = message.com_block
                 self.broadcast(commit)
 
+                # allow new paxos instance
+                self.commit_running = False
+
         elif message.msg_type == 'COMMIT':
-            self.committed_blocks = message.com_block
-            # TODO move_to_block and reinitialize server variables
+            self.blocktree.commit(message.com_block)
 
     def receive_transaction(self, txn):
         """React on a received txn depending on state"""
-        # check if txn has already been seen included in a block
+        # check if txn has already been seen
         if txn not in self.known_txs:
             # add txn to set of seen txs
             self.known_txs.add(txn)
 
-            # TODO timeout handling -> see readjust_timeout (gammachain)
             # timeout handling
             self.new_txs.append(txn)
             if len(self.new_txs) == 1:
@@ -204,31 +227,28 @@ class Node(PaxosNodeProtocol):
         """React on a received block """
 
         # demote node if necessary
-        if self.head_block < block or block.creator_state == QUICK:
+        if self.blocktree.head_block < block or block.creator_state == QUICK:
             self.state = SLOW
 
-        # block must be ancestor of last committed block and deeper than head_block
-        # TODO reject block if on discarded fork or not deeper than head_block
-
-        # TODO update head_block, also see move_to_block -> update known and new txs
         # add block to set of blocks seen so far
         self.blocks.add(block)
 
-        # readjust head block if necessary
-        if self.head_block < block:
-            self.head_block = block
+        # TODO: reject block if on discarded fork or not deeper than head_block
+
+        self.blocktree.move_to_block(block)
 
         # timeout readjustment
         if len(self.new_txs) != 0 and self.new_txs[0] != self.oldest_txn:
                 self.oldest_txn = self.new_txs[0]
-                # start a timeout
+                # start a new timeout
                 deferLater(reactor, self.get_patience(), self.timeout_over(), self.new_txs[0])
 
     # helper methods
 
     def create_block(self):
-        """Create a block containing new txs and return it."""  # create block
-        b = Block(self.id, self.head_block, list(self.new_txs))
+        """Create a block containing new txs and return it."""
+        # create block
+        b = Block(self.id, self.blocktree.head_block, list(self.new_txs))
         self.new_txs.clear()
 
         # add block to set of blocks seen so far
@@ -254,8 +274,8 @@ class Node(PaxosNodeProtocol):
         else:
             if self.slow_timeout is None:
                 patience = random.uniform((2. + EPSILON) * EXPECTED_RTT,
-                                        (2. + EPSILON) * EXPECTED_RTT +
-                                        self.n * EXPECTED_RTT * 0.5)
+                                          (2. + EPSILON) * EXPECTED_RTT +
+                                          self.n * EXPECTED_RTT * 0.5)
                 self.slow_timeout = patience
             else:
                 patience = self.slow_timeout
@@ -265,5 +285,18 @@ class Node(PaxosNodeProtocol):
         """This function is called one a timeout is over."""
         if txn in self.new_txs:
             # create a new block
-            self.create_block()
+            b = self.create_block()
 
+            self.blocktree.move_to_block(b)
+            self.broadcast(b)
+
+            #  if quick node then start a new instance of paxos
+            if self.state == QUICK and not self.commit_running:
+                self.commit_running = True
+                self.c_votes = 0
+                self.c_request_seq += 1
+
+                # create try message
+                try_msg = Message('TRY', self.c_request_seq)
+                try_msg.last_committed_block = self.blocktree.committed_block
+                self.broadcast(try_msg)
