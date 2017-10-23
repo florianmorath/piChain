@@ -1,5 +1,5 @@
 from twisted.internet import reactor
-import PaxosNode
+from .PaxosNode import PaxosNodeFactory
 
 """
     Initialize a paxos node. 
@@ -7,6 +7,6 @@ import PaxosNode
 """
 
 # create a paxos node which just listens on the given port
-reactor.listenTCP(8001, PaxosNode.PaxosNodeFactory(4))
+reactor.listenTCP(8001, PaxosNodeFactory(4))
 
 reactor.run()

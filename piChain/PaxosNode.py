@@ -1,5 +1,5 @@
 from twisted.internet import protocol
-from PaxosProtocol import Node
+from .PaxosProtocol import Node
 
 """
        This class implements the underling communication between paxos nodes 
