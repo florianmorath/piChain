@@ -31,7 +31,24 @@ class Blocktree:
 
     def commit(self, block):
         """Commit block"""
-        # TODO change commited_block, move_to_block and reinitialize server variables
+        if not self.ancestor(block, self.committed_block):
+            self.committed_block = block
+            self.move_to_block(block)
+
+    # helper methods
+
+    def ancestor(self, block_a, block_b):
+        """Return True if block_a is ancestor of block_b. block_b must be included in the blocktree else
+        raise ValueError"""
+        if block_b.block_id not in self.nodes:
+            raise ValueError('block_b must be included in the blocktree')
+        b = block_b
+        while b.parent_block_id is not None:
+            if block_a.block_id == b.parent_block_id:
+                return True
+            b = self.nodes.get(b.parent_block_id)
+
+        return False
 
 
 class Block:
@@ -208,6 +225,11 @@ class Node(PaxosNodeProtocol):
 
         elif message.msg_type == 'COMMIT':
             self.blocktree.commit(message.com_block)
+
+            # reinitialize server variables
+            self.s_supp_block = None
+            self.s_prop_block = None
+            self.s_max_block = None
 
     def receive_transaction(self, txn):
         """React on a received txn depending on state"""
