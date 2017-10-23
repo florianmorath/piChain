@@ -169,6 +169,7 @@ class Node:
 
         elif message.msg_type == 'COMMIT':
             self.committed_blocks = message.com_block
+            # TODO move_to_block and reinitialize server variables
 
     def receive_transaction(self, txn):
         """React on a received txn depending on state"""
