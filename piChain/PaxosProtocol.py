@@ -25,13 +25,6 @@ class Blocktree:
         self.nodes.update({GENESIS.block_id: GENESIS})
         self.blocks = set()  # all blocks seen by the node (also discarded blocks are stored here)
 
-    def reach_genesis_block(self, block):
-        """Check if there is a path from block to GENESIS block. If a block on the path is not contained in
-        self.nodes nor in self.blocks, we need to request it from other peers. This may happen because of a
-         network partition or if a node is down for a period of time"""
-        # TODO: implement reach_genesis_block (add all blocks to self.blocks)
-        self.blocks.add(block)
-
     def ancestor(self, block_a, block_b):
         """Return True if block_a is ancestor of block_b. """
         b = block_b
@@ -115,7 +108,7 @@ class Transaction:
         return 0
 
 
-class Message:
+class PaxosMessage:
     def __init__(self, msg_type, request_seq):
         self.msg_type = msg_type  # TRY, TRY_OK, PROPOSE, PROPOSE_ACK, COMMIT
         self.request_seq = request_seq
@@ -126,6 +119,18 @@ class Message:
         self.supp_block = None
         self.com_block = None
         self.last_committed_block = None
+
+
+class RequestBlocksMessage:
+    """"Is sent if a node is missing some blocks """
+    def __init__(self, block_ids):
+        self.block_ids = block_ids  # list of ids of blocks which are missing
+
+
+class RespondBlocksMessage:
+    """Is sent as a response to a RequestBlocksMessage"""
+    def __init__(self, blocks):
+        self.blocks = blocks  # list of all blocks the node is missing
 
 
 class Node(PaxosNodeProtocol):
@@ -140,6 +145,9 @@ class Node(PaxosNodeProtocol):
         self.n = n  # total number of nodes
 
         self.blocktree = Blocktree()
+
+        self.missing_blocks = []  # list of ids of missing blocks
+        self.sync_mode = False  # True if node is looking for missing nodes
 
         self.known_txs = set()  # all txs seen so far
         self.new_txs = []  # txs not yet in a block, behaving like a queue
@@ -174,7 +182,7 @@ class Node(PaxosNodeProtocol):
         which has send the request. Method will be implemented in superclass."""
         raise NotImplementedError("Superclass should implement this!")
 
-    def receive_message(self, message):
+    def receive_paxos_message(self, message):
         """Receive a message of type Message"""
         if message.msg_type == 'TRY':
             # make sure last commited block of sender is also commited by this node
@@ -184,7 +192,7 @@ class Node(PaxosNodeProtocol):
                 self.s_max_block = message.new_block
 
                 # create a TRY_OK message
-                try_ok = Message('TRY_OK', message.request_seq)
+                try_ok = PaxosMessage('TRY_OK', message.request_seq)
                 try_ok.prop_block = self.s_prop_block
                 try_ok.supp_block = self.s_supp_block
                 self.respond(try_ok)
@@ -216,7 +224,7 @@ class Node(PaxosNodeProtocol):
                     self.c_com_block = self.c_prop_block
 
                 # create PROPOSE message
-                propose = Message('PROPOSE', self.c_request_seq)
+                propose = PaxosMessage('PROPOSE', self.c_request_seq)
                 propose.com_block = self.c_com_block
                 propose.new_block = self.c_new_block
                 self.broadcast(propose)
@@ -228,7 +236,7 @@ class Node(PaxosNodeProtocol):
                 self.s_supp_block = message.new_block
 
                 # create a PROPOSE_ACK message
-                propose_ack = Message('PROPOSE_ACK', message.request_seq)
+                propose_ack = PaxosMessage('PROPOSE_ACK', message.request_seq)
                 propose_ack.com_block = message.com_block
                 self.respond(propose_ack)
 
@@ -244,7 +252,7 @@ class Node(PaxosNodeProtocol):
                 self.c_request_seq += 1
 
                 # create commit message
-                commit = Message('COMMIT', self.c_request_seq)
+                commit = PaxosMessage('COMMIT', self.c_request_seq)
                 commit.com_block = message.com_block
                 self.broadcast(commit)
 
@@ -277,7 +285,7 @@ class Node(PaxosNodeProtocol):
         """React on a received block """
 
         # make sure block is reachable
-        self.blocktree.reach_genesis_block(block)
+        self.reach_genesis_block(block)
 
         # demote node if necessary
         if self.blocktree.head_block < block or block.creator_state == QUICK:
@@ -294,12 +302,33 @@ class Node(PaxosNodeProtocol):
         # timeout readjustment
         self.readjust_timeout()
 
+    def receive_request_blocks_message(self, req):
+        """A node is missing some blocks. Send him the missing blocks if node has them. """
+        blocks = []
+        for b_id in req.block_ids:
+            if self.blocktree.nodes.get(b_id) is not None:
+                blocks.append(self.blocktree.nodes.get(b_id))
+        if len(blocks) != 0:
+            respond = RespondBlocksMessage(blocks)
+            self.respond(respond)
+
+    def receive_respond_blocks_message(self, resp):
+        """Receive the blocks that were missing from a peer. Can directly be added to self.nodes (and self.blocks)"""
+        if len(self.missing_blocks) != 0:
+            for b in resp.blocks:
+                self.blocktree.nodes.update({b.block_id: b})
+                self.blocktree.blocks.add(b)
+                self.missing_blocks.remove(b)
+            if len(self.missing_blocks) == 0:
+                # sync finished
+                self.sync_mode = False
+
     def move_to_block(self, target):
         """Change to target block as new head block. If target is found on a forked path, have to broadcast txs
          that wont be on the path from GENESIS to new head block anymore. """
 
         # make sure target is reachable
-        self.blocktree.reach_genesis_block(target)
+        self.reach_genesis_block(target)
 
         if not self.blocktree.ancestor(target, self.blocktree.head_block):
             common_ancestor = self.blocktree.common_ancestor(self.blocktree.head_block, target)
@@ -331,11 +360,21 @@ class Node(PaxosNodeProtocol):
     def commit(self, block):
         """Commit block"""
         # make sure block is reachable
-        self.blocktree.reach_genesis_block(block)
+        self.reach_genesis_block(block)
 
         if not self.blocktree.ancestor(block, self.blocktree.committed_block):
             self.blocktree.committed_block = block
             self.move_to_block(block)
+
+    def reach_genesis_block(self, block):
+        """Check if there is a path from block to GENESIS block. If a block on the path is not contained in
+        self.nodes nor in self.blocks, we need to request it from other peers and add it to self.blocks.
+        This may happen because of a network partition or if a node is down for a period of time."""
+        # TODO
+        self.blocks.add(block)
+
+        # if some are missing add ids to self.missing_blocks, self.sync_mode = True
+        # broadcast it inside RequestBlocksMessage
 
     # helper methods
 
@@ -398,7 +437,7 @@ class Node(PaxosNodeProtocol):
                 self.c_request_seq += 1
 
                 # create try message
-                try_msg = Message('TRY', self.c_request_seq)
+                try_msg = PaxosMessage('TRY', self.c_request_seq)
                 try_msg.last_committed_block = self.blocktree.committed_block
                 self.broadcast(try_msg)
 
