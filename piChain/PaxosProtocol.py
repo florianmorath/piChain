@@ -128,8 +128,8 @@ class RequestBlockMessage:
 
 class RespondBlockMessage:
     """Is sent as a response to a RequestBlockMessage"""
-    def __init__(self, block):
-        self.block = block  # block that a node misses
+    def __init__(self, blocks):
+        self.blocks = blocks  # the last 5 blocks starting from block the node misses
 
 
 class Node(PaxosNodeProtocol):
@@ -300,9 +300,23 @@ class Node(PaxosNodeProtocol):
         self.readjust_timeout()
 
     def receive_request_blocks_message(self, req):
-        """A node is missing a block. Send him the missing block if node has them. """
+        """A node is missing a block. Send him the missing block if node has them. Also send him the 5 ancestors
+         of missing block s.t he can recover faster in case he is missing more blocks. """
         if self.blocktree.nodes.get(req.block_id) is not None:
-            respond = RespondBlockMessage(self.blocktree.nodes.get(req.block_id))
+            blocks = []
+            blocks.append(self.blocktree.nodes.get(req.block_id))
+
+            # add five ancestors to blocks
+            b = self.blocktree.nodes.get(req.block_id)
+            i = 0
+            while i < 5 and b != GENESIS:
+                ++i
+                b = self.blocktree.nodes.get(b.parent_block_id)
+                if b != GENESIS:
+                    blocks.append(b)
+
+            # send blocks back
+            respond = RespondBlockMessage(blocks)
             self.respond(respond)
 
     def receive_respond_blocks_message(self, resp):
