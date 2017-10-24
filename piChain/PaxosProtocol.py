@@ -1,12 +1,10 @@
+"""This module implements the logic of the paxos algorithm."""
+
 import itertools
 import random
 from pichain.PaxosNode import PaxosNodeProtocol
 from twisted.internet.task import deferLater
 from twisted.internet import reactor
-
-"""
-    This module implements the logic of the paxos algorithm.
-"""
 
 QUICK = 0
 MEDIUM = 1
@@ -17,7 +15,7 @@ EPSILON = 0.001
 
 
 class Blocktree:
-    """Tree of blocks"""
+    """Tree of blocks."""
     def __init__(self):
         self.head_block = GENESIS  # deepest block in the block tree (head of the blockchain)
         self.committed_block = GENESIS  # last committed block -> will indirectly define all committed blocks so far
@@ -25,7 +23,16 @@ class Blocktree:
         self.nodes.update({GENESIS.block_id: GENESIS})
 
     def ancestor(self, block_a, block_b):
-        """Return True if block_a is ancestor of block_b. """
+        """Check if `block_a` is ancestor of `block_b`.
+
+        Args:
+            block_a (Block): First block
+            block_b (Block: Second block
+
+        Returns:
+            bool: True if `block_a` is ancestor of `block_b
+
+        """
         b = block_b
         while b.parent_block_id is not None:
             if block_a.block_id == b.parent_block_id:
@@ -35,7 +42,15 @@ class Blocktree:
         return False
 
     def common_ancestor(self, block_a, block_b):
-        """Return common ancestor of block_a and block_b"""
+        """Return common ancestor of `block_a` and `block_b`.
+
+        Args:
+            block_a (Block):
+            block_b (Block):
+
+        Returns:
+            Block: common ancestor of `block_a` and `block_b.
+        """
         while (block_a != GENESIS or block_b != GENESIS) and block_a != block_b:
             if block_a.depth > block_b.depth:
                 block_a = self.nodes.get(block_a.parent_block_id)
@@ -45,9 +60,16 @@ class Blocktree:
         return block_a
 
     def valid_block(self, block):
-        """Reject block if on a discarded fork (i.e commited_block is not ancestor of it)
-         or not deeper than head_block"""
+        """Reject `block` if on a discarded fork (i.e `self.commited_block` is not ancestor of it)
+         or not deeper than head_block.
 
+        Args:
+            block (Block): Block to be tested for validity.
+
+        Returns:
+            bool: True if `block` is valid else False.
+
+        """
         # check if committed_block is ancestor of block
         if not self.ancestor(self.committed_block, block):
             return False
@@ -72,7 +94,7 @@ class Block:
         self.depth = None  # should not be directly accessed if block is not contained in blocktree
 
     def __lt__(self, other):
-        """Compare two blocks by depth and creator ID."""
+        """Compare two blocks by depth` and `creator_id`."""
         if self.depth < other.depth:
             return True
 
@@ -121,13 +143,13 @@ class PaxosMessage:
 
 
 class RequestBlockMessage:
-    """"Is sent if a node is missing a block """
+    """"Is sent if a node is missing a block."""
     def __init__(self, block_id):
         self.block_id = block_id  # id of block which is missing
 
 
 class RespondBlockMessage:
-    """Is sent as a response to a RequestBlockMessage"""
+    """Is sent as a response to a `RequestBlockMessage`."""
     def __init__(self, blocks):
         self.blocks = blocks  # the last 5 blocks starting from block the node misses
 
@@ -172,17 +194,30 @@ class Node(PaxosNodeProtocol):
     # main methods
 
     def broadcast(self, obj):
-        """obj is an instance of type Message, Block or Transaction which will be broadcast to all peers.
-         Method will be implemented in superclass."""
+        """`obj` will be broadcast to all peers. Method will be implemented in superclass.
+
+        Args:
+            obj: is an instance of type Message, Block or Transaction.
+
+        """
         raise NotImplementedError("Superclass should implement this!")
 
     def respond(self, obj):
-        """obj is an instance of type Message, Block or Transaction which will be responded to to the peer
-        which has send the request. Method will be implemented in superclass."""
+        """`obj` will be responded to to the peer which has send the request. Method will be implemented in superclass.
+
+        Args:
+            obj: instance of type Message, Block or Transaction.
+
+        """
         raise NotImplementedError("Superclass should implement this!")
 
     def receive_paxos_message(self, message):
-        """Receive a message of type Message"""
+        """React on a received `message`. This method implements the main functionality of the paxos algorithm.
+
+        Args:
+            message (PaxosMessage): Message received.
+
+        """
         if message.msg_type == 'TRY':
             # make sure last commited block of sender is also commited by this node
             self.commit(message.last_committed_block)
@@ -267,7 +302,12 @@ class Node(PaxosNodeProtocol):
             self.s_max_block = None
 
     def receive_transaction(self, txn):
-        """React on a received txn depending on state"""
+        """React on a received `txn` depending on state.
+
+        Args:
+            txn (Transaction): Transaction received.
+
+        """
         # check if txn has already been seen
         if txn not in self.known_txs:
             # add txn to set of seen txs
@@ -281,8 +321,12 @@ class Node(PaxosNodeProtocol):
                 deferLater(reactor, self.get_patience(), self.timeout_over(), txn)
 
     def receive_block(self, block):
-        """React on a received block """
+        """React on a received `block`.
 
+        Args:
+            block (Block): Received block.
+
+        """
         # make sure block is reachable
         if not self.reach_genesis_block(block):
             return
@@ -300,17 +344,21 @@ class Node(PaxosNodeProtocol):
         self.readjust_timeout()
 
     def receive_request_blocks_message(self, req):
-        """A node is missing a block. Send him the missing block if node has them. Also send him the 5 ancestors
-         of missing block s.t he can recover faster in case he is missing more blocks. """
+        """A node is missing a block. Send him the missing block if node has it. Also send him the five ancestors
+         of the missing block s.t he can recover faster in case he is missing more blocks.
+
+        Args:
+            req (RequestBlockMessage): message that requests a missing block
+
+        """
         if self.blocktree.nodes.get(req.block_id) is not None:
-            blocks = []
-            blocks.append(self.blocktree.nodes.get(req.block_id))
+            blocks = [self.blocktree.nodes.get(req.block_id)]
 
             # add five ancestors to blocks
             b = self.blocktree.nodes.get(req.block_id)
             i = 0
             while i < 5 and b != GENESIS:
-                ++i
+                i = i + 1
                 b = self.blocktree.nodes.get(b.parent_block_id)
                 if b != GENESIS:
                     blocks.append(b)
@@ -320,18 +368,28 @@ class Node(PaxosNodeProtocol):
             self.respond(respond)
 
     def receive_respond_blocks_message(self, resp):
-        """Receive the block that is missing from a peer. Can directly be added to self.nodes"""
+        """Receive the blocks that are missing from a peer. Can directly be added to `self.nodes`.
+
+        Args:
+            resp (RespondBlockMessage): may contain the missing blocks s.t the node can recover.
+
+        """
+        # TODO: react on multiple blocks
         if self.missing_block_id is not None:
-            b = resp.block
+            b = resp.blocks
             self.blocktree.nodes.update({b.block_id: b})
             self.missing_block_id = None
             # sync finished
             self.sync_mode = False
 
     def move_to_block(self, target):
-        """Change to target block as new head block. If target is found on a forked path, have to broadcast txs
-         that wont be on the path from GENESIS to new head block anymore. """
+        """Change to `target` block as new `head_block`. If `target` is found on a forked path, have to broadcast txs
+         that wont be on the path from `GENESIS` to new `head_block` anymore.
 
+        Args:
+            target (Block): will be the new `head_block`
+
+        """
         # make sure target is reachable
         if not self.reach_genesis_block(target):
             return
@@ -351,7 +409,7 @@ class Node(PaxosNodeProtocol):
             while b != common_ancestor:
                 self.known_txs |= set(b.txs)
                 for tx in b.txs:
-                    self.new_txs.pop(tx, None)
+                    self.new_txs.pop(tx)
                 to_broadcast -= set(b.txs)
                 b = self.nodes.get(b.parent_block_id)
 
@@ -364,7 +422,12 @@ class Node(PaxosNodeProtocol):
             self.readjust_timeout()
 
     def commit(self, block):
-        """Commit block"""
+        """Commit `block`
+
+        Args:
+            block (Block): Block to be committed.
+
+        """
         # make sure block is reachable
         if not self.reach_genesis_block(block):
             return
@@ -374,10 +437,16 @@ class Node(PaxosNodeProtocol):
             self.move_to_block(block)
 
     def reach_genesis_block(self, block):
-        """Check if there is a path from block to GENESIS block. If a block on the path is not contained in
-        self.nodes, we need to request it from other peers.
+        """Check if there is a path from `block` to `GENESIS` block. If a block on the path is not contained in
+        `self.nodes`, we need to request it from other peers.
         This may happen because of a network partition or if a node is down for a period of time.
-        Return True if GENESIS block is reached. """
+
+        Args:
+            block (Block): From this block we want to find a path to GENESIS block.
+
+        Returns:
+            bool: True if `GENESIS` block was reached.
+        """
         self.blocktree.nodes.update({block.block_id: block})
 
         b = block
@@ -395,7 +464,12 @@ class Node(PaxosNodeProtocol):
     # helper methods
 
     def create_block(self):
-        """Create a block containing new txs and return it."""
+        """Create a block containing `new_txs` and return it.
+
+        Returns:
+            Block: created block.
+
+        """
         # store depth of current head_block (will be parent of new block)
         d = self.blocktree.head_block.depth
 
@@ -420,7 +494,12 @@ class Node(PaxosNodeProtocol):
 
     def get_patience(self):
         """Returns the time a node has to wait before creating a new block.
-        Corresponds to the nodes eagerness to create a new block. """
+        Corresponds to the nodes eagerness to create a new block.
+
+        Returns:
+            int: time node has to wait
+
+        """
         if self.state == QUICK:
             patience = 0
 
@@ -438,7 +517,13 @@ class Node(PaxosNodeProtocol):
         return patience
 
     def timeout_over(self, txn):
-        """This function is called once a timeout is over."""
+        """This function is called once a timeout is over. Will check if in the meantime the node received
+        the `txn`. If not it is allowed to ceate a new block and broadcast it.
+
+        Args:
+            txn (Transaction): This txn triggered the timeout
+
+        """
         if txn in self.new_txs:
             # create a new block
             b = self.create_block()
@@ -458,7 +543,7 @@ class Node(PaxosNodeProtocol):
                 self.broadcast(try_msg)
 
     def readjust_timeout(self):
-        """Is called if new_txs changed and thus the oldest_txn may be removed"""
+        """Is called if `new_txs` changed and thus the `oldest_txn` may be removed."""
         if len(self.new_txs) != 0 and self.new_txs[0] != self.oldest_txn:
                 self.oldest_txn = self.new_txs[0]
                 # start a new timeout
