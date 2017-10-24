@@ -167,7 +167,6 @@ class Node(PaxosNodeProtocol):
 
         self.blocktree = Blocktree()
 
-        self.missing_block_id = None  # id of missing block
         self.sync_mode = False  # True if node is looking for a missing block
 
         self.known_txs = set()  # all txs seen so far
@@ -374,11 +373,10 @@ class Node(PaxosNodeProtocol):
             resp (RespondBlockMessage): may contain the missing blocks s.t the node can recover.
 
         """
-        # TODO: react on multiple blocks
-        if self.missing_block_id is not None:
-            b = resp.blocks
-            self.blocktree.nodes.update({b.block_id: b})
-            self.missing_block_id = None
+        blocks = resp.blocks
+        if self.sync_mode:
+            for b in blocks:
+                self.blocktree.nodes.update({b.block_id: b})
             # sync finished
             self.sync_mode = False
 
@@ -455,7 +453,6 @@ class Node(PaxosNodeProtocol):
                 b = self.blocktree.nodes.get(b.parent_block_id)
             else:
                 self.sync_mode = True
-                self.missing_block_id = b.parent_block_id
                 req = RequestBlockMessage(b.parent_block_id)
                 self.broadcast(req)
                 return False
