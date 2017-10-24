@@ -2,7 +2,7 @@
 
 import itertools
 import random
-from pichain.PaxosNetwork import PaxosNodeProtocol
+from pichain.PaxosNode import PaxosNodeProtocol
 from twisted.internet.task import deferLater
 from twisted.internet import reactor
 
