@@ -1,11 +1,7 @@
+"""This class implements the networking between PaxosNodes.
+"""
 from twisted.internet import protocol
-#from pichain.PaxosProtocol import Node
-
-"""
-       This class implements the underling communication between paxos nodes 
-       i.e defines how a paxos node handles an incoming message. 
-"""
-
+#from pichain.PaxosLogic import Node
 
 class PaxosNodeProtocol(protocol.Protocol):
     def __init__(self, factory):
@@ -33,7 +29,7 @@ class PaxosNodeFactory(protocol.ClientFactory):
     """ keeps consistent state among multiple PaxosNodeProtocol instances. """
 
     def __init__(self, n):
-       # self.node = Node(n)
+        # self.node = Node(n)
         # dict: node id -> PaxosNode (can be used to broadcast messages: self.factory.peers[data] = self)
         self.peers = {}
 
