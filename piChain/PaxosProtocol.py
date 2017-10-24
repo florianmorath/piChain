@@ -23,6 +23,7 @@ class Blocktree:
         self.committed_block = GENESIS  # last committed block -> will indirectly define all committed blocks so far
         self.nodes = {}  # dictionary from block_id to instance of type Block
         self.nodes.update({GENESIS.block_id: GENESIS})
+        self.blocks = set()  # all blocks seen by the node (also discarded blocks are stored here)
 
     def move_to_block(self, target):
         """Change to target block as new head block. If target is found on a forked path, have to broadcast txs
@@ -50,6 +51,25 @@ class Blocktree:
 
         return False
 
+    def valid_block(self, block):
+        """Reject block if on a discarded fork (i.e commited_block is not ancestor of it)
+         or not deeper than head_block"""
+
+        # check if there's a path from block to committed_block (stop at GENESIS block),also think about missing blocks
+        # TODO valid_block
+        # check if depth of head_block (directly given) is smaller than depth of block
+        block.depth = self.depth(block)
+        if block < self.head_block:
+            return False
+
+        return True
+
+    def depth(self, block):
+        """Compute depth of given node and return it. If block is contained in nodes, we are
+        directly given its depth. Else iterate over parent_node_id. If parent_node_id is contained in nodes we can stop.
+        If not we can look for node in self.blocks. If it is not there we need to request it from other nodes."""
+        # TODO implement depth
+        return 0
 
 class Block:
     new_seq = itertools.count()
@@ -61,7 +81,7 @@ class Block:
         self.creator_state = None
         self.parent_block_id = parent_block_id  # parent block id (creator_id || SEQ)
         self.txs = txs  # list of transactions of type Transaction
-        self.depth = None
+        self.depth = None  # should not be directly accessed if block is not contained in blocktree
 
     def __lt__(self, other):
         """Compare two blocks by depth and creator ID."""
@@ -114,7 +134,6 @@ class Node(PaxosNodeProtocol):
         self.new_txs = []  # txs not yet in a block, behaving like a queue
 
         self.blocktree = Blocktree()
-        self.blocks = set()  # all blocks seen by the node (also discarded blocks are stored here)
 
         self.slow_timeout = None    # fix timeout of a slow node (u.a.r only once)
         self.oldest_txn = None  # txn which started a timeout
@@ -253,17 +272,15 @@ class Node(PaxosNodeProtocol):
             self.state = SLOW
 
         # add block to set of blocks seen so far
-        self.blocks.add(block)
+        self.blocktree.blocks.add(block)
 
-        # TODO: reject block if on discarded fork or not deeper than head_block
+        if not self.blocktree.valid_block(block):
+            return
 
         self.blocktree.move_to_block(block)
 
         # timeout readjustment
-        if len(self.new_txs) != 0 and self.new_txs[0] != self.oldest_txn:
-                self.oldest_txn = self.new_txs[0]
-                # start a new timeout
-                deferLater(reactor, self.get_patience(), self.timeout_over(), self.new_txs[0])
+        self.readjust_timeout()
 
     # helper methods
 
@@ -271,10 +288,11 @@ class Node(PaxosNodeProtocol):
         """Create a block containing new txs and return it."""
         # create block
         b = Block(self.id, self.blocktree.head_block, list(self.new_txs))
+        b.depth = self.blocktree.depth(b)
         self.new_txs.clear()
 
         # add block to set of blocks seen so far
-        self.blocks.add(b)
+        self.blocktree.blocks.add(b)
 
         # promote node
         self.state = max(QUICK, self.state - 1)
@@ -322,3 +340,10 @@ class Node(PaxosNodeProtocol):
                 try_msg = Message('TRY', self.c_request_seq)
                 try_msg.last_committed_block = self.blocktree.committed_block
                 self.broadcast(try_msg)
+
+    def readjust_timeout(self):
+        """Is called if new_txs changed and thus the oldest_txn may be removed"""
+        if len(self.new_txs) != 0 and self.new_txs[0] != self.oldest_txn:
+                self.oldest_txn = self.new_txs[0]
+                # start a new timeout
+                deferLater(reactor, self.get_patience(), self.timeout_over(), self.new_txs[0])
