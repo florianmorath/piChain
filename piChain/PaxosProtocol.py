@@ -25,24 +25,15 @@ class Blocktree:
         self.nodes.update({GENESIS.block_id: GENESIS})
         self.blocks = set()  # all blocks seen by the node (also discarded blocks are stored here)
 
-    def move_to_block(self, target):
-        """Change to target block as new head block. If target is found on a forked path, have to broadcast txs
-         that wont be on the path from GENESIS to new head block anymore. Set depth field of new head"""
-        # TODO move_to_block
-
-    def commit(self, block):
-        """Commit block"""
-        if not self.ancestor(block, self.committed_block):
-            self.committed_block = block
-            self.move_to_block(block)
-
-    # helper methods
+    def reach_genesis_block(self, block):
+        """Check if there is a path from block to GENESIS block. If a block on the path is not contained in
+        self.nodes nor in self.blocks, we need to request it from other peers. This may happen because of a
+         network partition or if a node is down for a period of time"""
+        # TODO: implement reach_genesis_block (add all blocks to self.blocks)
+        self.blocks.add(block)
 
     def ancestor(self, block_a, block_b):
-        """Return True if block_a is ancestor of block_b. block_b must be included in the blocktree else
-        raise ValueError"""
-        if block_b.block_id not in self.nodes:
-            raise ValueError('block_b must be included in the blocktree')
+        """Return True if block_a is ancestor of block_b. """
         b = block_b
         while b.parent_block_id is not None:
             if block_a.block_id == b.parent_block_id:
@@ -51,25 +42,30 @@ class Blocktree:
 
         return False
 
+    def common_ancestor(self, block_a, block_b):
+        """Return common ancestor of block_a and block_b"""
+        while (block_a != GENESIS or block_b != GENESIS) and block_a != block_b:
+            if block_a.depth > block_b.depth:
+                block_a = self.nodes.get(block_a.parent_block_id)
+            else:
+                block_b = self.nodes.get(block_b.parent_block_id)
+
+        return block_a
+
     def valid_block(self, block):
         """Reject block if on a discarded fork (i.e commited_block is not ancestor of it)
          or not deeper than head_block"""
 
-        # check if there's a path from block to committed_block (stop at GENESIS block),also think about missing blocks
-        # TODO valid_block
+        # check if committed_block is ancestor of block
+        if not self.ancestor(self.committed_block, block):
+            return False
+
         # check if depth of head_block (directly given) is smaller than depth of block
-        block.depth = self.depth(block)
         if block < self.head_block:
             return False
 
         return True
 
-    def depth(self, block):
-        """Compute depth of given node and return it. If block is contained in nodes, we are
-        directly given its depth. Else iterate over parent_node_id. If parent_node_id is contained in nodes we can stop.
-        If not we can look for node in self.blocks. If it is not there we need to request it from other nodes."""
-        # TODO implement depth
-        return 0
 
 class Block:
     new_seq = itertools.count()
@@ -93,6 +89,12 @@ class Block:
 
         return self.creator_id < other.creator_id
 
+    def __eq__(self, other):
+        return self.block_id == other.block_id
+
+    def __hash__(self):
+        return 0
+
 
 GENESIS = Block(-1, None, [])
 
@@ -103,7 +105,14 @@ class Transaction:
     def __init__(self, creator_id, content):
         self.creator_id = creator_id
         self.SEQ = next(Transaction.new_seq)
+        self.txn_id = int(str(self.creator_id) + str(self.SEQ))
         self.content = content  # a string which can represent a command for example
+
+    def __eq__(self, other):
+        return self.txn_id == other.txn_id
+
+    def __hash__(self):
+        return 0
 
 
 class Message:
@@ -130,10 +139,10 @@ class Node(PaxosNodeProtocol):
         self.state = SLOW
         self.n = n  # total number of nodes
 
-        self.known_txs = set()   # all txs seen so far
-        self.new_txs = []  # txs not yet in a block, behaving like a queue
-
         self.blocktree = Blocktree()
+
+        self.known_txs = set()  # all txs seen so far
+        self.new_txs = []  # txs not yet in a block, behaving like a queue
 
         self.slow_timeout = None    # fix timeout of a slow node (u.a.r only once)
         self.oldest_txn = None  # txn which started a timeout
@@ -169,7 +178,7 @@ class Node(PaxosNodeProtocol):
         """Receive a message of type Message"""
         if message.msg_type == 'TRY':
             # make sure last commited block of sender is also commited by this node
-            self.blocktree.commit(message.last_committed_block)
+            self.commit(message.last_committed_block)
 
             if self.s_max_block < message.new_block:
                 self.s_max_block = message.new_block
@@ -243,7 +252,7 @@ class Node(PaxosNodeProtocol):
                 self.commit_running = False
 
         elif message.msg_type == 'COMMIT':
-            self.blocktree.commit(message.com_block)
+            self.commit(message.com_block)
 
             # reinitialize server variables
             self.s_supp_block = None
@@ -267,28 +276,80 @@ class Node(PaxosNodeProtocol):
     def receive_block(self, block):
         """React on a received block """
 
+        # make sure block is reachable
+        self.blocktree.reach_genesis_block(block)
+
         # demote node if necessary
         if self.blocktree.head_block < block or block.creator_state == QUICK:
             self.state = SLOW
 
         # add block to set of blocks seen so far
-        self.blocktree.blocks.add(block)
+        # self.blocktree.blocks.add(block)
 
         if not self.blocktree.valid_block(block):
             return
 
-        self.blocktree.move_to_block(block)
+        self.move_to_block(block)
 
         # timeout readjustment
         self.readjust_timeout()
+
+    def move_to_block(self, target):
+        """Change to target block as new head block. If target is found on a forked path, have to broadcast txs
+         that wont be on the path from GENESIS to new head block anymore. """
+
+        # make sure target is reachable
+        self.blocktree.reach_genesis_block(target)
+
+        if not self.blocktree.ancestor(target, self.blocktree.head_block):
+            common_ancestor = self.blocktree.common_ancestor(self.blocktree.head_block, target)
+            to_broadcast = set()
+
+            # go from head_block to common ancestor: add txs to to_broadcast
+            b = self.blocktree.head_block
+            while b != common_ancestor:
+                to_broadcast |= set(b.txs)
+                b = self.blocktree.nodes.get(b.parent_block_id)
+
+            # go from target to common ancestor: remove txs from to_broadcast and new_txs, add to known_txs
+            b = target
+            while b != common_ancestor:
+                self.known_txs |= set(b.txs)
+                for tx in b.txs:
+                    self.new_txs.pop(tx, None)
+                to_broadcast -= set(b.txs)
+                b = self.nodes.get(b.parent_block_id)
+
+            # target is now the new head_block
+            self.blocktree.head_block = target
+
+            # broadcast txs in to_broadcast
+            for tx in to_broadcast:
+                self.broadcast(tx)
+            self.readjust_timeout()
+
+    def commit(self, block):
+        """Commit block"""
+        # make sure block is reachable
+        self.blocktree.reach_genesis_block(block)
+
+        if not self.blocktree.ancestor(block, self.blocktree.committed_block):
+            self.blocktree.committed_block = block
+            self.move_to_block(block)
 
     # helper methods
 
     def create_block(self):
         """Create a block containing new txs and return it."""
+        # store depth of current head_block (will be parent of new block)
+        d = self.blocktree.head_block.depth
+
         # create block
         b = Block(self.id, self.blocktree.head_block, list(self.new_txs))
-        b.depth = self.blocktree.depth(b)
+
+        # compute its depth (will be fixed -> depth field is only set once)
+        b.depth = d + len(b.txs)
+
         self.new_txs.clear()
 
         # add block to set of blocks seen so far
@@ -322,12 +383,12 @@ class Node(PaxosNodeProtocol):
         return patience
 
     def timeout_over(self, txn):
-        """This function is called one a timeout is over."""
+        """This function is called once a timeout is over."""
         if txn in self.new_txs:
             # create a new block
             b = self.create_block()
 
-            self.blocktree.move_to_block(b)
+            self.move_to_block(b)
             self.broadcast(b)
 
             #  if quick node then start a new instance of paxos
