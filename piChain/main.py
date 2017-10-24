@@ -1,5 +1,5 @@
 from twisted.internet import reactor
-from pichain.PaxosNode import PaxosNodeFactory
+from pichain.PaxosNetwork import PaxosNodeFactory
 
 """
     Initialize a paxos node. 
