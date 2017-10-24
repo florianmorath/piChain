@@ -17,13 +17,12 @@ EPSILON = 0.001
 
 
 class Blocktree:
-    """Tree of blocks that is always in a consistent state"""
+    """Tree of blocks"""
     def __init__(self):
         self.head_block = GENESIS  # deepest block in the block tree (head of the blockchain)
         self.committed_block = GENESIS  # last committed block -> will indirectly define all committed blocks so far
         self.nodes = {}  # dictionary from block_id to instance of type Block
         self.nodes.update({GENESIS.block_id: GENESIS})
-        self.blocks = set()  # all blocks seen by the node (also discarded blocks are stored here)
 
     def ancestor(self, block_a, block_b):
         """Return True if block_a is ancestor of block_b. """
@@ -121,16 +120,16 @@ class PaxosMessage:
         self.last_committed_block = None
 
 
-class RequestBlocksMessage:
-    """"Is sent if a node is missing some blocks """
-    def __init__(self, block_ids):
-        self.block_ids = block_ids  # list of ids of blocks which are missing
+class RequestBlockMessage:
+    """"Is sent if a node is missing a block """
+    def __init__(self, block_id):
+        self.block_id = block_id  # id of block which is missing
 
 
-class RespondBlocksMessage:
-    """Is sent as a response to a RequestBlocksMessage"""
-    def __init__(self, blocks):
-        self.blocks = blocks  # list of all blocks the node is missing
+class RespondBlockMessage:
+    """Is sent as a response to a RequestBlockMessage"""
+    def __init__(self, block):
+        self.block = block  # block that a node misses
 
 
 class Node(PaxosNodeProtocol):
@@ -146,8 +145,8 @@ class Node(PaxosNodeProtocol):
 
         self.blocktree = Blocktree()
 
-        self.missing_blocks = []  # list of ids of missing blocks
-        self.sync_mode = False  # True if node is looking for missing nodes
+        self.missing_block_id = None  # id of missing block
+        self.sync_mode = False  # True if node is looking for a missing block
 
         self.known_txs = set()  # all txs seen so far
         self.new_txs = []  # txs not yet in a block, behaving like a queue
@@ -285,14 +284,12 @@ class Node(PaxosNodeProtocol):
         """React on a received block """
 
         # make sure block is reachable
-        self.reach_genesis_block(block)
+        if not self.reach_genesis_block(block):
+            return
 
         # demote node if necessary
         if self.blocktree.head_block < block or block.creator_state == QUICK:
             self.state = SLOW
-
-        # add block to set of blocks seen so far
-        # self.blocktree.blocks.add(block)
 
         if not self.blocktree.valid_block(block):
             return
@@ -303,32 +300,27 @@ class Node(PaxosNodeProtocol):
         self.readjust_timeout()
 
     def receive_request_blocks_message(self, req):
-        """A node is missing some blocks. Send him the missing blocks if node has them. """
-        blocks = []
-        for b_id in req.block_ids:
-            if self.blocktree.nodes.get(b_id) is not None:
-                blocks.append(self.blocktree.nodes.get(b_id))
-        if len(blocks) != 0:
-            respond = RespondBlocksMessage(blocks)
+        """A node is missing a block. Send him the missing block if node has them. """
+        if self.blocktree.nodes.get(req.block_id) is not None:
+            respond = RespondBlockMessage(self.blocktree.nodes.get(req.block_id))
             self.respond(respond)
 
     def receive_respond_blocks_message(self, resp):
-        """Receive the blocks that were missing from a peer. Can directly be added to self.nodes (and self.blocks)"""
-        if len(self.missing_blocks) != 0:
-            for b in resp.blocks:
-                self.blocktree.nodes.update({b.block_id: b})
-                self.blocktree.blocks.add(b)
-                self.missing_blocks.remove(b)
-            if len(self.missing_blocks) == 0:
-                # sync finished
-                self.sync_mode = False
+        """Receive the block that is missing from a peer. Can directly be added to self.nodes"""
+        if self.missing_block_id is not None:
+            b = resp.block
+            self.blocktree.nodes.update({b.block_id: b})
+            self.missing_block_id = None
+            # sync finished
+            self.sync_mode = False
 
     def move_to_block(self, target):
         """Change to target block as new head block. If target is found on a forked path, have to broadcast txs
          that wont be on the path from GENESIS to new head block anymore. """
 
         # make sure target is reachable
-        self.reach_genesis_block(target)
+        if not self.reach_genesis_block(target):
+            return
 
         if not self.blocktree.ancestor(target, self.blocktree.head_block):
             common_ancestor = self.blocktree.common_ancestor(self.blocktree.head_block, target)
@@ -360,7 +352,8 @@ class Node(PaxosNodeProtocol):
     def commit(self, block):
         """Commit block"""
         # make sure block is reachable
-        self.reach_genesis_block(block)
+        if not self.reach_genesis_block(block):
+            return
 
         if not self.blocktree.ancestor(block, self.blocktree.committed_block):
             self.blocktree.committed_block = block
@@ -368,13 +361,22 @@ class Node(PaxosNodeProtocol):
 
     def reach_genesis_block(self, block):
         """Check if there is a path from block to GENESIS block. If a block on the path is not contained in
-        self.nodes nor in self.blocks, we need to request it from other peers and add it to self.blocks.
-        This may happen because of a network partition or if a node is down for a period of time."""
-        # TODO
-        self.blocks.add(block)
+        self.nodes, we need to request it from other peers.
+        This may happen because of a network partition or if a node is down for a period of time.
+        Return True if GENESIS block is reached. """
+        self.blocktree.nodes.update({block.block_id: block})
 
-        # if some are missing add ids to self.missing_blocks, self.sync_mode = True
-        # broadcast it inside RequestBlocksMessage
+        b = block
+        while b != GENESIS:
+            if self.blocktree.nodes.get(b.parent_block_id) is not None:
+                b = self.blocktree.nodes.get(b.parent_block_id)
+            else:
+                self.sync_mode = True
+                self.missing_block_id = b.parent_block_id
+                req = RequestBlockMessage(b.parent_block_id)
+                self.broadcast(req)
+                return False
+        return True
 
     # helper methods
 
@@ -391,8 +393,8 @@ class Node(PaxosNodeProtocol):
 
         self.new_txs.clear()
 
-        # add block to set of blocks seen so far
-        self.blocktree.blocks.add(b)
+        # add block to blocktree
+        self.blocktree.nodes.update({b.block_id: b})
 
         # promote node
         self.state = max(QUICK, self.state - 1)
