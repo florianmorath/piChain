@@ -6,6 +6,7 @@ from piChain.PaxosNetwork import PaxosNodeProtocol
 from twisted.internet.task import deferLater
 from twisted.internet import reactor
 
+
 QUICK = 0
 MEDIUM = 1
 SLOW = 2
@@ -336,7 +337,7 @@ class Node(PaxosNodeProtocol):
             if len(self.new_txs) == 1:
                 self.oldest_txn = txn
                 # start a timeout
-                deferLater(reactor, self.get_patience(), self.timeout_over(), txn)
+                deferLater(reactor, self.get_patience(), self.timeout_over, txn)
 
     def receive_block(self, block):
         """React on a received `block`.
@@ -411,7 +412,7 @@ class Node(PaxosNodeProtocol):
         if not self.reach_genesis_block(target):
             return
 
-        if not self.blocktree.ancestor(target, self.blocktree.head_block):
+        if (not self.blocktree.ancestor(target, self.blocktree.head_block)) and target != self.blocktree.head_block:
             common_ancestor = self.blocktree.common_ancestor(self.blocktree.head_block, target)
             to_broadcast = set()
 
@@ -426,9 +427,10 @@ class Node(PaxosNodeProtocol):
             while b != common_ancestor:
                 self.known_txs |= set(b.txs)
                 for tx in b.txs:
-                    self.new_txs.pop(tx)
+                    if tx in self.new_txs:
+                        self.new_txs.remove(tx)
                 to_broadcast -= set(b.txs)
-                b = self.nodes.get(b.parent_block_id)
+                b = self.blocktree.nodes.get(b.parent_block_id)
 
             # target is now the new head_block
             self.blocktree.head_block = target
@@ -490,7 +492,7 @@ class Node(PaxosNodeProtocol):
         d = self.blocktree.head_block.depth
 
         # create block
-        b = Block(self.id, self.blocktree.head_block, list(self.new_txs))
+        b = Block(self.id, self.blocktree.head_block, self.new_txs)
 
         # compute its depth (will be fixed -> depth field is only set once)
         b.depth = d + len(b.txs)
@@ -540,6 +542,7 @@ class Node(PaxosNodeProtocol):
             txn (Transaction): This txn triggered the timeout
 
         """
+        print('timeout_over called: ', txn)
         if txn in self.new_txs:
             # create a new block
             b = self.create_block()
@@ -565,4 +568,4 @@ class Node(PaxosNodeProtocol):
         if len(self.new_txs) != 0 and self.new_txs[0] != self.oldest_txn:
                 self.oldest_txn = self.new_txs[0]
                 # start a new timeout
-                deferLater(reactor, self.get_patience(), self.timeout_over(), self.new_txs[0])
+                deferLater(reactor, self.get_patience(), self.timeout_over, self.new_txs[0])
