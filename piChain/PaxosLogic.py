@@ -84,10 +84,10 @@ class Blocktree:
         """Add `block` to `self.nodes`.
 
         Note: Every node has a depth once created, but to facilitate testing
-        depth of a block is computed based on its parent.
+        depth of a block is computed based on its parent if available.
 
         Args:
-            block (Block): Block to be added .
+            block (Block): Block to be added.
 
         """
         if block.depth is None and self.nodes.get(block.parent_block_id) is not None:
