@@ -23,7 +23,7 @@ class Blocktree:
         self.nodes.update({GENESIS.block_id: GENESIS})
 
     def ancestor(self, block_a, block_b):
-        """Check if `block_a` is ancestor of `block_b`.
+        """Check if `block_a` is ancestor of `block_b`. Both blocks must be included in `self.nodes`
 
         Args:
             block_a (Block): First block
@@ -80,6 +80,21 @@ class Blocktree:
 
         return True
 
+    def add_block(self, block):
+        """Add `block` to `self.nodes`.
+
+        Note: Every node has a depth once created, but to facilitate testing
+        depth of a block is computed based on its parent.
+
+        Args:
+            block (Block): Block to be added .
+
+        """
+        if block.depth is None and self.nodes.get(block.parent_block_id) is not None:
+            parent = self.nodes.get(block.parent_block_id)
+            block.depth = parent.depth + len(block.txs)
+        self.nodes.update({block.block_id: block})
+
 
 class Block:
     new_seq = itertools.count()
@@ -87,11 +102,11 @@ class Block:
     def __init__(self, creator_id, parent_block_id, txs):
         self.creator_id = creator_id
         self.SEQ = next(Block.new_seq)
-        self.block_id = int(str(self.creator_id) + str(self.SEQ))
+        self.block_id = int(str(self.creator_id) + str(self.SEQ))  # (creator_id || SEQ)
         self.creator_state = None
-        self.parent_block_id = parent_block_id  # parent block id (creator_id || SEQ)
+        self.parent_block_id = parent_block_id  # parent block id
         self.txs = txs  # list of transactions of type Transaction
-        self.depth = None  # should not be directly accessed if block is not contained in blocktree
+        self.depth = None
 
     def __lt__(self, other):
         """Compare two blocks by depth` and `creator_id`."""
@@ -111,6 +126,7 @@ class Block:
 
 
 GENESIS = Block(-1, None, [])
+GENESIS.depth = 0
 
 
 class Transaction:
@@ -464,7 +480,7 @@ class Node(PaxosNodeProtocol):
         """Create a block containing `new_txs` and return it.
 
         Returns:
-            Block: created block.
+            Block: The block that was created.
 
         """
         # store depth of current head_block (will be parent of new block)
