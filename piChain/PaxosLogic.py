@@ -252,6 +252,15 @@ class Node(PaxosNodeProtocol):
                 # outdated message
                 return
 
+            # if TRY_OK message contains a propose block, we will support it if it is the first received
+            # or if its support block is deeper than the one already stored
+            if message.supp_block and self.c_supp_block is None:
+                self.c_supp_block = message.supp_block
+                self.c_prop_block = message.prop_block
+            elif message.supp_block and self.c_supp_block and self.c_supp_block < message.supp_block:
+                self.c_supp_block = message.supp_block
+                self.c_prop_block = message.prop_block
+
             self.c_votes += 1
             if self.c_votes > self.n / 2:
 
@@ -261,12 +270,6 @@ class Node(PaxosNodeProtocol):
 
                 # the compromise block will be the block we are going to propose in the end
                 self.c_com_block = self.c_new_block
-
-                # if TRY_OK message contains a propose block, we will support it if it is the first received
-                # or if its support block is deeper than the one already stored
-                if message.supp_block and self.c_supp_block and self.c_supp_block < message.supp_block:
-                    self.c_supp_block = message.supp_block
-                    self.c_prop_block = message.prop_block
 
                 # check if we need to support another block instead of the new block
                 if self.c_prop_block:
@@ -314,7 +317,7 @@ class Node(PaxosNodeProtocol):
             # reinitialize server variables
             self.s_supp_block = None
             self.s_prop_block = None
-            self.s_max_block = None
+            self.s_max_block = GENESIS
 
     def receive_transaction(self, txn):
         """React on a received `txn` depending on state.
@@ -549,6 +552,8 @@ class Node(PaxosNodeProtocol):
                 self.commit_running = True
                 self.c_votes = 0
                 self.c_request_seq += 1
+                self.c_supp_block = None
+                self.c_prop_block = None
 
                 # create try message
                 try_msg = PaxosMessage('TRY', self.c_request_seq)

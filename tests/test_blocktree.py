@@ -72,3 +72,17 @@ class TestBlocktree(TestCase):
         assert not bt.valid_block(b3)
         assert not bt.valid_block(b2)
 
+    def test_block_set(self):
+
+        # test that __hash__ and __eq__ were implemented correctly
+        b1 = Block(0, GENESIS.block_id, ['a'])
+        block_set = set()
+        block_set.add(b1)
+        block_set.add(b1)
+
+        assert len(block_set) == 1
+
+        b2 = Block(0, GENESIS.block_id, ['a'])
+        block_set.add(b2)
+
+        assert len(block_set) == 2
