@@ -217,7 +217,7 @@ class Node(PaxosNodeProtocol):
 
         """
         if message.msg_type == 'TRY':
-            # make sure last commited block of sender is also commited by this node
+            # make sure last commited block of sender is also committed by this node
             self.commit(message.last_committed_block)
 
             if self.s_max_block < message.new_block:
@@ -235,7 +235,7 @@ class Node(PaxosNodeProtocol):
                 # outdated message
                 return
 
-            # if TRY_OK message contains a propose block, we will support it if it is the first received
+            # if TRY_OK message contains a propose block, we will support it, if it is the first received
             # or if its support block is deeper than the one already stored
             if message.supp_block and self.c_supp_block is None:
                 self.c_supp_block = message.supp_block

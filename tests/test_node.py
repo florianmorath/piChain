@@ -1,4 +1,3 @@
-import pytest
 from unittest import TestCase
 from unittest.mock import MagicMock
 
@@ -23,7 +22,11 @@ class TestNode(TestCase):
 
         node.receive_paxos_message(try_msg)
         assert node.respond.called
-        # TODO: assert_called_with
+        assert node.s_max_block == b
+
+        # obj = node.respond.call_args[0][0]
+        # print('try_ok message = ', pprint(vars(obj)))
+        # print('node vars = ', pprint(vars(node)))
 
     def test_receive_paxos_message_try_ok_1(self):
         # try_ok message with no prop/supp block stored locally and message does not contain a propose block
@@ -41,7 +44,7 @@ class TestNode(TestCase):
         node.receive_paxos_message(try_ok)
 
         assert node.broadcast.called
-        # TODO: assert_called_with
+        assert node.c_com_block == node.c_new_block
 
     def test_receive_paxos_message_try_ok_2(self):
         # try_ok message with prop/supp block stored locally and message does not contain a propose block
@@ -62,7 +65,7 @@ class TestNode(TestCase):
         node.receive_paxos_message(try_ok)
 
         assert node.broadcast.called
-        # TODO: assert_called_with
+        assert node.c_supp_block == GENESIS
 
     def test_receive_paxos_message_try_ok_3(self):
         # try_ok message with no prop/supp block stored locally and message does contain a propose block
@@ -84,7 +87,10 @@ class TestNode(TestCase):
         node.receive_paxos_message(try_ok)
 
         assert node.broadcast.called
-        # TODO: assert_called_with
+        assert node.c_prop_block == b
+
+        obj = node.broadcast.call_args[0][0]
+        assert obj.com_block == b
 
     def test_receive_paxos_message_propose(self):
         propose = PaxosMessage('PROPOSE', 1)
@@ -101,7 +107,8 @@ class TestNode(TestCase):
         node.receive_paxos_message(propose)
 
         assert node.respond.called
-        # TODO: assert_called_with
+        assert node.s_prop_block == propose.com_block
+        assert node.s_supp_block == propose.new_block
 
     def test_receive_paxos_message_propose_ack(self):
         propose_ack = PaxosMessage('PROPOSE_ACK', 1)
@@ -120,7 +127,9 @@ class TestNode(TestCase):
         node.receive_paxos_message(propose_ack)
 
         assert node.broadcast.called
-        # TODO: assert_called_with
+
+        obj = node.broadcast.call_args[0][0]
+        assert obj.com_block == propose_ack.com_block
 
     def test_receive_transaction(self):
         txn = Transaction(0, 'a')
@@ -182,7 +191,6 @@ class TestNode(TestCase):
         node.reach_genesis_block(b)
 
         assert node.broadcast.called
-        # TODO: assert_called_with
 
     def test_receive_request_blocks_message(self):
         bt = Blocktree()
@@ -208,7 +216,6 @@ class TestNode(TestCase):
         node.receive_request_blocks_message(req)
 
         assert node.respond.called
-        # TODO: assert_called_with
 
     def test_move_to_block(self):
         bt = Blocktree()
@@ -245,6 +252,4 @@ class TestNode(TestCase):
         node.move_to_block(b1)
 
         assert node.broadcast.called
-        # TODO: assert_called_with
-
         assert node.blocktree.head_block == b1
