@@ -178,6 +178,8 @@ class Node(PaxosNodeProtocol):
 
         super().__init__(factory)
 
+        self.reactor = reactor  # must be parametrized for testing (default = global reactor)
+
         self.id = next(Node.new_id)
         self.state = SLOW
         self.n = n  # total number of nodes
@@ -319,7 +321,7 @@ class Node(PaxosNodeProtocol):
             if len(self.new_txs) == 1:
                 self.oldest_txn = txn
                 # start a timeout
-                deferLater(reactor, self.get_patience(), self.timeout_over, txn)
+                deferLater(self.reactor, self.get_patience(), self.timeout_over, txn)
 
     def receive_block(self, block):
         """React on a received `block`.
@@ -550,4 +552,4 @@ class Node(PaxosNodeProtocol):
         if len(self.new_txs) != 0 and self.new_txs[0] != self.oldest_txn:
                 self.oldest_txn = self.new_txs[0]
                 # start a new timeout
-                deferLater(reactor, self.get_patience(), self.timeout_over, self.new_txs[0])
+                deferLater(self.reactor, self.get_patience(), self.timeout_over, self.new_txs[0])

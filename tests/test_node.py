@@ -1,5 +1,6 @@
-from unittest import TestCase
 from unittest.mock import MagicMock
+from twisted.internet import task
+from twisted.trial.unittest import TestCase
 
 from piChain.PaxosLogic import PaxosMessage, Node, GENESIS, Block, Transaction, Blocktree, RequestBlockMessage
 from piChain.PaxosNetwork import PaxosNodeFactory
@@ -131,14 +132,6 @@ class TestNode(TestCase):
         obj = node.broadcast.call_args[0][0]
         assert obj.com_block == propose_ack.com_block
 
-    def test_receive_transaction(self):
-        txn = Transaction(0, 'a')
-
-        factory = PaxosNodeFactory()
-        node = Node(10, factory)
-        node.receive_transaction(txn)
-        # TODO: test timeout
-
     def test_create_block(self):
         # create a blocktree and add blocks to it
         bt = Blocktree()
@@ -253,3 +246,21 @@ class TestNode(TestCase):
 
         assert node.broadcast.called
         assert node.blocktree.head_block == b1
+
+    def test_receive_transaction(self):
+        txn = Transaction(0, 'a')
+
+        factory = PaxosNodeFactory()
+        node = Node(10, factory)
+
+        # test timeout
+        clock = task.Clock()
+        # must use a different reactor for testing
+        node.reactor = clock
+        node.timeout_over = MagicMock()
+        node.receive_transaction(txn)
+        clock.advance(50)
+
+        assert node.timeout_over.called
+
+
