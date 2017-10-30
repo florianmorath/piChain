@@ -476,7 +476,7 @@ class Node(PaxosNodeProtocol):
         d = self.blocktree.head_block.depth
 
         # create block
-        b = Block(self.id, self.blocktree.head_block, self.new_txs)
+        b = Block(self.id, self.blocktree.head_block.block_id, self.new_txs)
 
         # compute its depth (will be fixed -> depth field is only set once)
         b.depth = d + len(b.txs)
@@ -526,7 +526,6 @@ class Node(PaxosNodeProtocol):
             txn (Transaction): This txn triggered the timeout
 
         """
-        print('timeout_over called: ', txn)
         if txn in self.new_txs:
             # create a new block
             b = self.create_block()

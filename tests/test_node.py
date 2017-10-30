@@ -263,4 +263,34 @@ class TestNode(TestCase):
 
         assert node.timeout_over.called
 
+    def test_timeout_over(self):
+        # create a blocktree and add blocks to it
+        bt = Blocktree()
+        b1 = Block(1, GENESIS.block_id, [Transaction(1, 'a')])
+        b2 = Block(2, GENESIS.block_id, [Transaction(1, 'a')])
+        b3 = Block(3, b2.block_id, [Transaction(1, 'a')])
+        b4 = Block(4, b3.block_id, [Transaction(1, 'a')])
+        b5 = Block(5, b2.block_id, [Transaction(1, 'a')])
+
+        bt.add_block(b1)
+        bt.add_block(b2)
+        bt.add_block(b3)
+        bt.add_block(b4)
+        bt.add_block(b5)
+
+        bt.head_block = b4
+
+        factory = PaxosNodeFactory()
+        node = Node(10, factory)
+        txn = Transaction(1, 'a')
+        node.new_txs = [txn]
+        node.blocktree = bt
+        node.broadcast = MagicMock()
+        node.state = 0
+        node.timeout_over(txn)
+
+        assert node.broadcast.called
+        obj = node.broadcast.call_args[0][0]
+        assert obj.last_committed_block == node.blocktree.committed_block
+
 
