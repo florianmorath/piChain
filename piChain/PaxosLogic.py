@@ -209,24 +209,6 @@ class Node(PaxosNodeProtocol):
 
     # main methods
 
-    def broadcast(self, obj):
-        """`obj` will be broadcast to all peers. Method will be implemented in superclass.
-
-        Args:
-            obj: is an instance of type Message, Block or Transaction.
-
-        """
-        raise NotImplementedError("Superclass should implement this!")
-
-    def respond(self, obj):
-        """`obj` will be responded to to the peer which has send the request. Method will be implemented in superclass.
-
-        Args:
-            obj: instance of type Message, Block or Transaction.
-
-        """
-        raise NotImplementedError("Superclass should implement this!")
-
     def receive_paxos_message(self, message):
         """React on a received `message`. This method implements the main functionality of the paxos algorithm.
 

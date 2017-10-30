@@ -3,6 +3,7 @@
 from twisted.internet import protocol
 #from pichain.PaxosLogic import Node
 
+
 class PaxosNodeProtocol(protocol.Protocol):
     def __init__(self, factory):
         self.factory = factory
@@ -15,14 +16,29 @@ class PaxosNodeProtocol(protocol.Protocol):
         # add self to peers if no connection to this peer yet
 
     def broadcast(self, obj):
-        for peer in self.factory.peers.items():
-            if peer[1] != self:
-                print('broadcast')
-                # peer[1].transport.write(...)
+        """
+        `obj` will be broadcast to all the peers.
+        
+        Args:
+            obj: an instance of type Message, Block or Transaction
+
+        """
+        print('broadcast')
+
+        # for peer in self.factory.peers.items():
+        #     if peer[1] != self:
+        #         print('broadcast')
+        #         # peer[1].transport.write(...)
 
     def respond(self, obj):
-        """obj is an instance of type Message, Block or Transaction which will be responded to to the peer
-        which has send the request. """
+        """
+        `obj` will be responded to to the peer which has send the request.
+        
+        Args:
+            obj: an instance of type Message, Block or Transaction
+
+        """
+        print('respond')
 
 
 class PaxosNodeFactory(protocol.ClientFactory):

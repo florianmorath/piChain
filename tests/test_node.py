@@ -1,5 +1,7 @@
 import pytest
 from unittest import TestCase
+from unittest.mock import MagicMock
+
 from piChain.PaxosLogic import PaxosMessage, Node, GENESIS, Block, Transaction, Blocktree, RequestBlockMessage
 from piChain.PaxosNetwork import PaxosNodeFactory
 
@@ -17,8 +19,11 @@ class TestNode(TestCase):
 
         factory = PaxosNodeFactory()
         node = Node(10, factory)
-        with pytest.raises(NotImplementedError):
-            node.receive_paxos_message(try_msg)
+        node.respond = MagicMock()
+
+        node.receive_paxos_message(try_msg)
+        assert node.respond.called
+        # TODO: assert_called_with
 
     def test_receive_paxos_message_try_ok_1(self):
         # try_ok message with no prop/supp block stored locally and message does not contain a propose block
@@ -32,9 +37,11 @@ class TestNode(TestCase):
         node.c_request_seq = 1
         node.c_new_block = b
         node.c_votes = 5
+        node.broadcast = MagicMock()
+        node.receive_paxos_message(try_ok)
 
-        with pytest.raises(NotImplementedError):
-            node.receive_paxos_message(try_ok)
+        assert node.broadcast.called
+        # TODO: assert_called_with
 
     def test_receive_paxos_message_try_ok_2(self):
         # try_ok message with prop/supp block stored locally and message does not contain a propose block
@@ -51,8 +58,11 @@ class TestNode(TestCase):
         node.c_supp_block = GENESIS
         node.c_prop_block = GENESIS
 
-        with pytest.raises(NotImplementedError):
-            node.receive_paxos_message(try_ok)
+        node.broadcast = MagicMock()
+        node.receive_paxos_message(try_ok)
+
+        assert node.broadcast.called
+        # TODO: assert_called_with
 
     def test_receive_paxos_message_try_ok_3(self):
         # try_ok message with no prop/supp block stored locally and message does contain a propose block
@@ -70,8 +80,11 @@ class TestNode(TestCase):
         node.c_new_block = b
         node.c_votes = 5
 
-        with pytest.raises(NotImplementedError):
-            node.receive_paxos_message(try_ok)
+        node.broadcast = MagicMock()
+        node.receive_paxos_message(try_ok)
+
+        assert node.broadcast.called
+        # TODO: assert_called_with
 
     def test_receive_paxos_message_propose(self):
         propose = PaxosMessage('PROPOSE', 1)
@@ -84,9 +97,11 @@ class TestNode(TestCase):
         propose.com_block = GENESIS
 
         node = Node(10, factory)
+        node.respond = MagicMock()
+        node.receive_paxos_message(propose)
 
-        with pytest.raises(NotImplementedError):
-            node.receive_paxos_message(propose)
+        assert node.respond.called
+        # TODO: assert_called_with
 
     def test_receive_paxos_message_propose_ack(self):
         propose_ack = PaxosMessage('PROPOSE_ACK', 1)
@@ -101,8 +116,11 @@ class TestNode(TestCase):
         node.c_request_seq = 1
         node.c_votes = 5
 
-        with pytest.raises(NotImplementedError):
-            node.receive_paxos_message(propose_ack)
+        node.broadcast = MagicMock()
+        node.receive_paxos_message(propose_ack)
+
+        assert node.broadcast.called
+        # TODO: assert_called_with
 
     def test_receive_transaction(self):
         txn = Transaction(0, 'a')
@@ -110,6 +128,7 @@ class TestNode(TestCase):
         factory = PaxosNodeFactory()
         node = Node(10, factory)
         node.receive_transaction(txn)
+        # TODO: test timeout
 
     def test_create_block(self):
         # create a blocktree and add blocks to it
@@ -158,8 +177,12 @@ class TestNode(TestCase):
         assert node.reach_genesis_block(b5)
 
         b = Block(1, 1234, [Transaction(1, 'a')])
-        with pytest.raises(NotImplementedError):
-            node.reach_genesis_block(b)
+
+        node.broadcast = MagicMock()
+        node.reach_genesis_block(b)
+
+        assert node.broadcast.called
+        # TODO: assert_called_with
 
     def test_receive_request_blocks_message(self):
         bt = Blocktree()
@@ -180,8 +203,12 @@ class TestNode(TestCase):
         node.blocktree = bt
 
         req = RequestBlockMessage(b4.block_id)
-        with pytest.raises(NotImplementedError):
-            node.receive_request_blocks_message(req)
+
+        node.respond = MagicMock()
+        node.receive_request_blocks_message(req)
+
+        assert node.respond.called
+        # TODO: assert_called_with
 
     def test_move_to_block(self):
         bt = Blocktree()
@@ -214,6 +241,10 @@ class TestNode(TestCase):
         node.move_to_block(b6)
         assert node.blocktree.head_block == b6
 
-        with pytest.raises(NotImplementedError):
-            node.move_to_block(b1)
+        node.broadcast = MagicMock()
+        node.move_to_block(b1)
+
+        assert node.broadcast.called
+        # TODO: assert_called_with
+
         assert node.blocktree.head_block == b1
