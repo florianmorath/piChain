@@ -2,7 +2,9 @@
 
 import itertools
 import random
-from piChain.PaxosNetwork import PaxosNodeProtocol
+import logging
+
+from piChain.PaxosNetwork import ConnectionManager
 from twisted.internet.task import deferLater
 from twisted.internet import reactor
 
@@ -171,12 +173,12 @@ class RespondBlockMessage:
         self.blocks = blocks  # the last 5 blocks starting from block the node misses
 
 
-class Node(PaxosNodeProtocol):
+class Node(ConnectionManager):
     new_id = itertools.count()
 
-    def __init__(self, n, factory):
+    def __init__(self, n):
 
-        super().__init__(factory)
+        super().__init__()
 
         self.reactor = reactor  # must be parametrized for testing (default = global reactor)
 
@@ -208,8 +210,6 @@ class Node(PaxosNodeProtocol):
         self.c_supp_block = None
 
         self.commit_running = False
-
-    # main methods
 
     def receive_paxos_message(self, message):
         """React on a received `message`. This method implements the main functionality of the paxos algorithm.
@@ -463,8 +463,6 @@ class Node(PaxosNodeProtocol):
                 return False
         return True
 
-    # helper methods
-
     def create_block(self):
         """Create a block containing `new_txs` and return it.
 
@@ -526,6 +524,7 @@ class Node(PaxosNodeProtocol):
             txn (Transaction): This txn triggered the timeout
 
         """
+        logging.debug('timeout_over called')
         if txn in self.new_txs:
             # create a new block
             b = self.create_block()

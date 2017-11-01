@@ -3,7 +3,6 @@ from twisted.internet import task
 from twisted.trial.unittest import TestCase
 
 from piChain.PaxosLogic import PaxosMessage, Node, GENESIS, Block, Transaction, Blocktree, RequestBlockMessage
-from piChain.PaxosNetwork import PaxosNodeFactory
 
 
 class TestNode(TestCase):
@@ -17,8 +16,7 @@ class TestNode(TestCase):
         b.depth = 1
         try_msg.new_block = b
 
-        factory = PaxosNodeFactory()
-        node = Node(10, factory)
+        node = Node(10)
         node.respond = MagicMock()
 
         node.receive_paxos_message(try_msg)
@@ -33,11 +31,10 @@ class TestNode(TestCase):
         # try_ok message with no prop/supp block stored locally and message does not contain a propose block
         try_ok = PaxosMessage('TRY_OK', 1)
 
-        factory = PaxosNodeFactory()
         b = Block(1, GENESIS.block_id, ['a'])
         b.depth = 1
 
-        node = Node(10, factory)
+        node = Node(10)
         node.c_request_seq = 1
         node.c_new_block = b
         node.c_votes = 5
@@ -51,11 +48,10 @@ class TestNode(TestCase):
         # try_ok message with prop/supp block stored locally and message does not contain a propose block
         try_ok = PaxosMessage('TRY_OK', 1)
 
-        factory = PaxosNodeFactory()
         b = Block(1, GENESIS.block_id, ['a'])
         b.depth = 1
 
-        node = Node(10, factory)
+        node = Node(10)
         node.c_request_seq = 1
         node.c_new_block = b
         node.c_votes = 5
@@ -72,14 +68,13 @@ class TestNode(TestCase):
         # try_ok message with no prop/supp block stored locally and message does contain a propose block
         try_ok = PaxosMessage('TRY_OK', 1)
 
-        factory = PaxosNodeFactory()
         b = Block(1, GENESIS.block_id, ['a'])
         b.depth = 1
 
         try_ok.supp_block = b
         try_ok.prop_block = b
 
-        node = Node(10, factory)
+        node = Node(10)
         node.c_request_seq = 1
         node.c_new_block = b
         node.c_votes = 5
@@ -96,14 +91,13 @@ class TestNode(TestCase):
     def test_receive_paxos_message_propose(self):
         propose = PaxosMessage('PROPOSE', 1)
 
-        factory = PaxosNodeFactory()
         b = Block(1, GENESIS.block_id, ['a'])
         b.depth = 1
 
         propose.new_block = GENESIS
         propose.com_block = GENESIS
 
-        node = Node(10, factory)
+        node = Node(10)
         node.respond = MagicMock()
         node.receive_paxos_message(propose)
 
@@ -114,13 +108,12 @@ class TestNode(TestCase):
     def test_receive_paxos_message_propose_ack(self):
         propose_ack = PaxosMessage('PROPOSE_ACK', 1)
 
-        factory = PaxosNodeFactory()
         b = Block(1, GENESIS.block_id, ['a'])
         b.depth = 1
 
         propose_ack.com_block = b
 
-        node = Node(10, factory)
+        node = Node(10)
         node.c_request_seq = 1
         node.c_votes = 5
 
@@ -149,8 +142,7 @@ class TestNode(TestCase):
 
         bt.head_block = b4
 
-        factory = PaxosNodeFactory()
-        node = Node(10, factory)
+        node = Node(10)
         node.new_txs = [Transaction(1, 'a')]
         node.blocktree = bt
 
@@ -172,8 +164,7 @@ class TestNode(TestCase):
         bt.add_block(b4)
         bt.add_block(b5)
 
-        factory = PaxosNodeFactory()
-        node = Node(10, factory)
+        node = Node(10)
         node.blocktree = bt
 
         assert node.reach_genesis_block(b5)
@@ -199,8 +190,7 @@ class TestNode(TestCase):
         bt.add_block(b4)
         bt.add_block(b5)
 
-        factory = PaxosNodeFactory()
-        node = Node(10, factory)
+        node = Node(10)
         node.blocktree = bt
 
         req = RequestBlockMessage(b4.block_id)
@@ -228,8 +218,7 @@ class TestNode(TestCase):
 
         bt.head_block = b4
 
-        factory = PaxosNodeFactory()
-        node = Node(10, factory)
+        node = Node(10)
         node.blocktree = bt
 
         old = node.blocktree.head_block
@@ -250,8 +239,7 @@ class TestNode(TestCase):
     def test_receive_transaction(self):
         txn = Transaction(0, 'a')
 
-        factory = PaxosNodeFactory()
-        node = Node(10, factory)
+        node = Node(10)
 
         # test timeout
         clock = task.Clock()
@@ -280,8 +268,7 @@ class TestNode(TestCase):
 
         bt.head_block = b4
 
-        factory = PaxosNodeFactory()
-        node = Node(10, factory)
+        node = Node(10)
         txn = Transaction(1, 'a')
         node.new_txs = [txn]
         node.blocktree = bt
@@ -292,5 +279,3 @@ class TestNode(TestCase):
         assert node.broadcast.called
         obj = node.broadcast.call_args[0][0]
         assert obj.last_committed_block == node.blocktree.committed_block
-
-
