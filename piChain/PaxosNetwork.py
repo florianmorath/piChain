@@ -12,8 +12,6 @@ import json
 
 import argparse
 
-from uuid import uuid4
-
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -45,14 +43,13 @@ class Connection(LineReceiver):
             peer_node_id = msg['nodeid']
             logging.info('Handshake from %s with peer_node_id = %s ', str(self.transport.getPeer()), peer_node_id)
 
-            if self.peer_node_id is not None:
-                # ignore message because we already did a handshake
-                return
             if peer_node_id not in self.connection_manager.peers:
                 self.connection_manager.peers.update({peer_node_id: self})
                 self.peer_node_id = peer_node_id
             else:
-                self.transport.loseConnection()
+                # give peer change to add connection
+                logging.info('give peer change to add connection')
+                self.send_hello()
 
         else:
             self.connection_manager.message_callback(msg_type, line, self)
@@ -65,9 +62,9 @@ class Connection(LineReceiver):
 class ConnectionManager(Factory):
     """ keeps consistent state among multiple Connection instances. Represents a node with a unique node_id. """
 
-    def __init__(self):
+    def __init__(self, node_id):
         self.peers = {}  # dict: node_id -> Connection
-        self.node_id = self.generate_node_id()
+        self.node_id = node_id
         self.message_callback = self.parse_msg  # Callable with arguments (msg_type, data, sender: Connection)
 
     def buildProtocol(self, addr):
@@ -75,7 +72,7 @@ class ConnectionManager(Factory):
 
     def connections_report(self):
         logging.info('"""""""""""""""""')
-        logging.info('Connections: ')
+        logging.info('Connections: %s', self.node_id)
         for key, value in self.peers.items():
             logging.info('Connection from %s (%s) to %s (%s).',
                          value.transport.getHost(), self.node_id, value.transport.getPeer(), value.peer_node_id)
@@ -106,13 +103,10 @@ class ConnectionManager(Factory):
     def parse_msg(self, msg_type, data, sender):
         logging.info('parse_msg called')
 
-    @staticmethod
-    def generate_node_id():
-        return str(uuid4())
 
-
+node_ids = ['a60c0bc6-b85a-47ad-abaa-a59e35822de2', 'b5564ec6-fd1d-481a-b68b-9b49a0ddd38b',
+            'c1469026-d386-41ee-adc5-9fd7d0bf453e']
 ports = [5999, 5998, 5997]
-cm = ConnectionManager()
 
 
 def got_protocol(p):
@@ -121,15 +115,14 @@ def got_protocol(p):
     p.send_hello()
 
 
-def connect_to_nodes(server_port):
+def connect_to_nodes(node_index, cm):
+    cm.connections_report()
 
-    for port in ports:
-        if port != server_port:
-            point = TCP4ClientEndpoint(reactor, 'localhost', port)
+    for index in range(len(node_ids)):
+        if node_ids[index] != node_ids[node_index] and node_ids[index] not in cm.peers:
+            point = TCP4ClientEndpoint(reactor, 'localhost', ports[index])
             d = connectProtocol(point, Connection(cm))
             d.addCallback(got_protocol)
-
-    cm.connections_report()
 
 
 def _show_error(failure):
@@ -140,16 +133,18 @@ def main():
     parser = argparse.ArgumentParser()
 
     # start server
-    parser.add_argument("server_port")
+    parser.add_argument("node_index")
     args = parser.parse_args()
 
-    server_port = int(args.server_port)
-    endpoint = TCP4ServerEndpoint(reactor, server_port)
+    node_index = int(args.node_index)
+    cm = ConnectionManager(node_ids[node_index])
+
+    endpoint = TCP4ServerEndpoint(reactor, ports[node_index])
 
     endpoint.listen(cm)
 
     # "client part" -> connect to all servers -> add handshake callback
-    reconnect_loop = task.LoopingCall(connect_to_nodes, server_port)
+    reconnect_loop = task.LoopingCall(connect_to_nodes, node_index, cm)
     deferred = reconnect_loop.start(20, False)
     deferred.addErrback(_show_error)
 
