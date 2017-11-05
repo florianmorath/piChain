@@ -46,16 +46,29 @@ class Connection(LineReceiver):
             if peer_node_id not in self.connection_manager.peers:
                 self.connection_manager.peers.update({peer_node_id: self})
                 self.peer_node_id = peer_node_id
+                # give peer chance to add connection
+                self.send_hello_ack()
             else:
-                # give peer change to add connection
+                # give peer chance to add connection
                 logging.info('give peer change to add connection')
                 self.send_hello()
+        elif msg_type == 'ACK':
+            peer_node_id = msg['nodeid']
+            logging.info('Handshake ACK from %s with peer_node_id = %s ', str(self.transport.getPeer()), peer_node_id)
+
+            if peer_node_id not in self.connection_manager.peers:
+                self.connection_manager.peers.update({peer_node_id: self})
+                self.peer_node_id = peer_node_id
 
         else:
             self.connection_manager.message_callback(msg_type, line, self)
 
     def send_hello(self):
         s = json.dumps({'msg_type': 'HEL', 'nodeid': self.node_id})
+        self.sendLine(s.encode())
+
+    def send_hello_ack(self):
+        s = json.dumps({'msg_type': 'ACK', 'nodeid': self.node_id})
         self.sendLine(s.encode())
 
 
