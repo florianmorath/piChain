@@ -33,6 +33,9 @@ class Connection(LineReceiver):
         # remove peer_node_id from connection_manager.peers
         if self.peer_node_id is not None and self.peer_node_id in self.connection_manager.peers:
             self.connection_manager.peers.pop(self.peer_node_id)
+            if not self.connection_manager.reconnect_loop.running:
+                logging.info('Connection synchronization restart')
+                self.connection_manager.reconnect_loop.start(10)
 
     def lineReceived(self, line):
         msg = json.loads(line)
@@ -131,11 +134,17 @@ def got_protocol(p):
 def connect_to_nodes(node_index, cm):
     cm.connections_report()
 
+    activated = False
     for index in range(len(node_ids)):
         if node_ids[index] != node_ids[node_index] and node_ids[index] not in cm.peers:
+            activated = True
             point = TCP4ClientEndpoint(reactor, 'localhost', ports[index])
             d = connectProtocol(point, Connection(cm))
             d.addCallback(got_protocol)
+
+    if not activated:
+        cm.reconnect_loop.stop()
+        logging.info('Connection synchronization finished: Connected to all peers')
 
 
 def _show_error(failure):
@@ -157,8 +166,9 @@ def main():
     endpoint.listen(cm)
 
     # "client part" -> connect to all servers -> add handshake callback
-    reconnect_loop = task.LoopingCall(connect_to_nodes, node_index, cm)
-    deferred = reconnect_loop.start(20, False)
+    cm.reconnect_loop = task.LoopingCall(connect_to_nodes, node_index, cm)
+    logging.info('Connection synchronization start')
+    deferred = cm.reconnect_loop.start(10, True)
     deferred.addErrback(_show_error)
 
     # start reactor
