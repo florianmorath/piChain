@@ -1,11 +1,12 @@
 """This module implements the networking between nodes.
 """
 
-from twisted.internet.protocol import Factory
+from twisted.internet.protocol import Factory, connectionDone
 from twisted.protocols.basic import LineReceiver
 from twisted.internet.endpoints import TCP4ServerEndpoint, TCP4ClientEndpoint
 from twisted.internet import reactor, task
 from twisted.internet.endpoints import connectProtocol
+
 
 import logging
 import json
@@ -13,6 +14,11 @@ import json
 import argparse
 
 logging.basicConfig(level=logging.DEBUG)
+
+# TODO: put noe_ids, ports and ips into config file
+node_ids = ['a60c0bc6-b85a-47ad-abaa-a59e35822de2', 'b5564ec6-fd1d-481a-b68b-9b49a0ddd38b',
+            'c1469026-d386-41ee-adc5-9fd7d0bf453e']
+ports = [5999, 5998, 5997]
 
 
 class Connection(LineReceiver):
@@ -25,10 +31,9 @@ class Connection(LineReceiver):
 
     def connectionMade(self):
         logging.info('Connected to %s.', str(self.transport.getPeer()))
-        pass
 
-    def connectionLost(self, reason):
-        logging.info('Lost connection to %s:%s', str(self.transport.getPeer()), reason)
+    def connectionLost(self, reason=connectionDone):
+        logging.info('Lost connection to %s:%s', str(self.transport.getPeer()), reason.getErrorMessage())
 
         # remove peer_node_id from connection_manager.peers
         if self.peer_node_id is not None and self.peer_node_id in self.connection_manager.peers:
@@ -74,6 +79,9 @@ class Connection(LineReceiver):
         s = json.dumps({'msg_type': 'ACK', 'nodeid': self.node_id})
         self.sendLine(s.encode())
 
+    def rawDataReceived(self, data):
+        pass
+
 
 class ConnectionManager(Factory):
     """ keeps consistent state among multiple Connection instances. Represents a node with a unique node_id. """
@@ -85,6 +93,22 @@ class ConnectionManager(Factory):
 
     def buildProtocol(self, addr):
         return Connection(self)
+
+    def connect_to_nodes(self, node_index):
+        self.connections_report()
+
+        activated = False
+        for index in range(len(node_ids)):
+            if node_ids[index] != node_ids[node_index] and node_ids[index] not in self.peers:
+                activated = True
+                point = TCP4ClientEndpoint(reactor, 'localhost', ports[index])
+                d = connectProtocol(point, Connection(self))
+                d.addCallback(got_protocol)
+                d.addErrback(self.show_error)
+
+        if not activated:
+            self.reconnect_loop.stop()
+            logging.info('Connection synchronization finished: Connected to all peers')
 
     def connections_report(self):
         logging.info('"""""""""""""""""')
@@ -119,10 +143,12 @@ class ConnectionManager(Factory):
     def parse_msg(self, msg_type, data, sender):
         logging.info('parse_msg called')
 
+    @staticmethod
+    def show_error(failure):
+        logging.errror('An error occured: %s', str(failure))
 
-node_ids = ['a60c0bc6-b85a-47ad-abaa-a59e35822de2', 'b5564ec6-fd1d-481a-b68b-9b49a0ddd38b',
-            'c1469026-d386-41ee-adc5-9fd7d0bf453e']
-ports = [5999, 5998, 5997]
+
+# TODO: put following code into main.py
 
 
 def got_protocol(p):
@@ -131,45 +157,24 @@ def got_protocol(p):
     p.send_hello()
 
 
-def connect_to_nodes(node_index, cm):
-    cm.connections_report()
-
-    activated = False
-    for index in range(len(node_ids)):
-        if node_ids[index] != node_ids[node_index] and node_ids[index] not in cm.peers:
-            activated = True
-            point = TCP4ClientEndpoint(reactor, 'localhost', ports[index])
-            d = connectProtocol(point, Connection(cm))
-            d.addCallback(got_protocol)
-
-    if not activated:
-        cm.reconnect_loop.stop()
-        logging.info('Connection synchronization finished: Connected to all peers')
-
-
-def _show_error(failure):
-    logging.debug('An error occured: %s', str(failure))
-
-
 def main():
     parser = argparse.ArgumentParser()
 
     # start server
     parser.add_argument("node_index")
     args = parser.parse_args()
-
     node_index = int(args.node_index)
+
     cm = ConnectionManager(node_ids[node_index])
 
     endpoint = TCP4ServerEndpoint(reactor, ports[node_index])
-
     endpoint.listen(cm)
 
     # "client part" -> connect to all servers -> add handshake callback
-    cm.reconnect_loop = task.LoopingCall(connect_to_nodes, node_index, cm)
+    cm.reconnect_loop = task.LoopingCall(cm.connect_to_nodes, node_index)
     logging.info('Connection synchronization start')
     deferred = cm.reconnect_loop.start(10, True)
-    deferred.addErrback(_show_error)
+    deferred.addErrback(ConnectionManager.show_error)
 
     # start reactor
     logging.info('start reactor')
