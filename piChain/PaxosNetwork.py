@@ -6,6 +6,7 @@ from twisted.protocols.basic import LineReceiver
 from twisted.internet.endpoints import TCP4ServerEndpoint, TCP4ClientEndpoint
 from twisted.internet import reactor, task
 from twisted.internet.endpoints import connectProtocol
+from twisted.python import log
 
 
 import logging
@@ -104,7 +105,7 @@ class ConnectionManager(Factory):
                 point = TCP4ClientEndpoint(reactor, 'localhost', ports[index])
                 d = connectProtocol(point, Connection(self))
                 d.addCallback(got_protocol)
-                d.addErrback(self.show_error)
+                d.addErrback(self.handle_connection_error, node_ids[index])
 
         if not activated:
             self.reconnect_loop.stop()
@@ -144,8 +145,8 @@ class ConnectionManager(Factory):
         logging.info('parse_msg called')
 
     @staticmethod
-    def show_error(failure):
-        logging.errror('An error occured: %s', str(failure))
+    def handle_connection_error(failure, node_id):
+        logging.info('Peer not online (%s): peer node id = %s ', str(failure.type), node_id)
 
 
 # TODO: put following code into main.py
@@ -174,7 +175,7 @@ def main():
     cm.reconnect_loop = task.LoopingCall(cm.connect_to_nodes, node_index)
     logging.info('Connection synchronization start')
     deferred = cm.reconnect_loop.start(10, True)
-    deferred.addErrback(ConnectionManager.show_error)
+    deferred.addErrback(log.err)
 
     # start reactor
     logging.info('start reactor')
