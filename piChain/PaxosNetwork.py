@@ -8,10 +8,8 @@ from twisted.internet import reactor, task
 from twisted.internet.endpoints import connectProtocol
 from twisted.python import log
 
-
 import logging
 import json
-
 import argparse
 
 logging.basicConfig(level=logging.DEBUG)
@@ -23,7 +21,19 @@ ports = [5999, 5998, 5997]
 
 
 class Connection(LineReceiver):
-    """This class keeps track of information about a connection with another node."""
+    """This class keeps track of information about a connection with another node. It is a subclass of `LineReceiver`
+    i.e each line that's received becomes a callback to the method `lineReceived`.
+
+    note: We always serialize objects to a JSON formatted str and encode it as a bytes object with utf-8 encoding
+        before sending it to the other side.
+
+    Attributes:
+        connection_manager (Factory): The factory that created the connection. It keeps a consistent state
+            among connections.
+        node_id (String): Unique predefined uuid of the node on this side of the connection.
+        peer_node_id (String): Unique predefined uuid of the node on the other side of the connection.
+
+    """
 
     def __init__(self, factory):
         self.connection_manager = factory
@@ -40,28 +50,33 @@ class Connection(LineReceiver):
         if self.peer_node_id is not None and self.peer_node_id in self.connection_manager.peers:
             self.connection_manager.peers.pop(self.peer_node_id)
             if not self.connection_manager.reconnect_loop.running:
-                logging.info('Connection synchronization restart')
+                logging.info('Connection synchronization restart...')
                 self.connection_manager.reconnect_loop.start(10)
 
     def lineReceived(self, line):
-        msg = json.loads(line)
+        """Callback that is called as soon as a line is available.
+
+        Args:
+            line (bytes): The line received. A bytes instance containing a JSON document.
+
+        """
+        msg = json.loads(line)  # deserialize the line to a python object
         msg_type = msg['msg_type']
 
         if msg_type == 'HEL':
-            # handshake_message: add self to connection_manager.peers if peer_node_id inside message not yet in peers
+            # handle handshake message
             peer_node_id = msg['nodeid']
             logging.info('Handshake from %s with peer_node_id = %s ', str(self.transport.getPeer()), peer_node_id)
 
             if peer_node_id not in self.connection_manager.peers:
                 self.connection_manager.peers.update({peer_node_id: self})
                 self.peer_node_id = peer_node_id
-                # give peer chance to add connection
-                self.send_hello_ack()
-            else:
-                # give peer chance to add connection
-                logging.info('give peer change to add connection')
-                self.send_hello()
+
+            # give peer chance to add connection
+            self.send_hello_ack()
+
         elif msg_type == 'ACK':
+            # handle handshake acknowledgement
             peer_node_id = msg['nodeid']
             logging.info('Handshake ACK from %s with peer_node_id = %s ', str(self.transport.getPeer()), peer_node_id)
 
@@ -73,10 +88,16 @@ class Connection(LineReceiver):
             self.connection_manager.message_callback(msg_type, line, self)
 
     def send_hello(self):
-        s = json.dumps({'msg_type': 'HEL', 'nodeid': self.node_id})
-        self.sendLine(s.encode())
+        """ Send hello/handshake message s.t other node gets to know this node.
+
+        """
+        s = json.dumps({'msg_type': 'HEL', 'nodeid': self.node_id})  # Serialize obj to a JSON formatted str
+        self.sendLine(s.encode())   # str.encode() returns encoded version of string as a bytes object (utf-8 encoding)
 
     def send_hello_ack(self):
+        """ Send hello/handshake acknowledgement message s.t other node also has a chance to add connection.
+
+        """
         s = json.dumps({'msg_type': 'ACK', 'nodeid': self.node_id})
         self.sendLine(s.encode())
 
@@ -85,17 +106,31 @@ class Connection(LineReceiver):
 
 
 class ConnectionManager(Factory):
-    """ keeps consistent state among multiple Connection instances. Represents a node with a unique node_id. """
+    """Keeps a consistent state among multiple `Connection` instances. Represents a node with a unique `node_id`.
 
+    Attributes:
+        peers (dict of String: Connection): The key represents the node_id and the value the Connection to the node
+            with this node_id.
+        node_id (String): unique identifier of this factory which represents a node.
+        message_callback (Callable with signature (msg_type, data, sender: Connection)): Received lines are delegated
+            to this callback if they are not handled inside Connection itself.
+
+    """
     def __init__(self, node_id):
-        self.peers = {}  # dict: node_id -> Connection
+        self.peers = {}
         self.node_id = node_id
-        self.message_callback = self.parse_msg  # Callable with arguments (msg_type, data, sender: Connection)
+        self.message_callback = self.parse_msg
 
     def buildProtocol(self, addr):
         return Connection(self)
 
     def connect_to_nodes(self, node_index):
+        """Connect to other peers if not yet connected to them. Ports, ips and node ids of them are all given/predefined.
+
+        Args:
+            node_index (int): index of this node into list of ports/ips and node_ids.
+
+        """
         self.connections_report()
 
         activated = False
@@ -113,7 +148,7 @@ class ConnectionManager(Factory):
 
     def connections_report(self):
         logging.info('"""""""""""""""""')
-        logging.info('Connections: %s', self.node_id)
+        logging.info('Connections: local node id = %s', self.node_id)
         for key, value in self.peers.items():
             logging.info('Connection from %s (%s) to %s (%s).',
                          value.transport.getHost(), self.node_id, value.transport.getPeer(), value.peer_node_id)
@@ -153,12 +188,15 @@ class ConnectionManager(Factory):
 
 
 def got_protocol(p):
-    """The callback to start the protocol exchange. We let connecting
-    nodes start the hello handshake"""
+    """The callback to start the protocol exchange. We let connecting nodes start the hello handshake."""
     p.send_hello()
 
 
 def main():
+    """
+    Entry point. First starts a server listening on a given port. Then connects to other peers. Also starts the reactor.
+
+    """
     parser = argparse.ArgumentParser()
 
     # start server
@@ -173,7 +211,7 @@ def main():
 
     # "client part" -> connect to all servers -> add handshake callback
     cm.reconnect_loop = task.LoopingCall(cm.connect_to_nodes, node_index)
-    logging.info('Connection synchronization start')
+    logging.info('Connection synchronization start...')
     deferred = cm.reconnect_loop.start(10, True)
     deferred.addErrback(log.err)
 
