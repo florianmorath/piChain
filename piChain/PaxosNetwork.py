@@ -14,7 +14,7 @@ import argparse
 
 logging.basicConfig(level=logging.DEBUG)
 
-# TODO: put noe_ids, ports and ips into config file
+# TODO: put node_ids, ports and ips into config file
 node_ids = ['a60c0bc6-b85a-47ad-abaa-a59e35822de2', 'b5564ec6-fd1d-481a-b68b-9b49a0ddd38b',
             'c1469026-d386-41ee-adc5-9fd7d0bf453e']
 ports = [5999, 5998, 5997]

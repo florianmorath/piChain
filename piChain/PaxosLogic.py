@@ -178,11 +178,11 @@ class Node(ConnectionManager):
 
     def __init__(self, n):
 
-        super().__init__()
+        self.id = next(Node.new_id)
+        super().__init__(str(self.id))
 
         self.reactor = reactor  # must be parametrized for testing (default = global reactor)
 
-        self.id = next(Node.new_id)
         self.state = SLOW
         self.n = n  # total number of nodes
 

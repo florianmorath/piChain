@@ -4,6 +4,9 @@ from twisted.trial.unittest import TestCase
 
 from piChain.PaxosLogic import PaxosMessage, Node, GENESIS, Block, Transaction, Blocktree, RequestBlockMessage
 
+import logging
+logging.disable(logging.CRITICAL)
+
 
 class TestNode(TestCase):
 

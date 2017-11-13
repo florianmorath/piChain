@@ -1,6 +1,9 @@
 from unittest import TestCase
 from piChain.PaxosLogic import Blocktree, Block, GENESIS
 
+import logging
+logging.disable(logging.CRITICAL)
+
 
 class TestBlocktree(TestCase):
 
