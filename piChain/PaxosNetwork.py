@@ -85,7 +85,7 @@ class Connection(LineReceiver):
                 self.peer_node_id = peer_node_id
 
         else:
-            self.connection_manager.message_callback(msg_type, line, self)
+            self.connection_manager.message_callback(msg_type, msg, self)
 
     def send_hello(self):
         """ Send hello/handshake message s.t other node gets to know this node.
@@ -176,13 +176,23 @@ class ConnectionManager(Factory):
         logging.info('respond')
         # TODO: use the sender argument of message_callback
 
-    def parse_msg(self, msg_type, data, sender):
+    def parse_msg(self, msg_type, msg, sender):
         logging.info('parse_msg called')
+        if msg_type == 'RQB':
+            self.receive_request_blocks_message(msg)
+        elif msg_type == 'TXN':
+            self.receive_transaction(msg)
 
     @staticmethod
     def handle_connection_error(failure, node_id):
         logging.info('Peer not online (%s): peer node id = %s ', str(failure.type), node_id)
 
+    # all the methods which will be called from parse_msg according to msg_type
+    def receive_request_blocks_message(self, req):
+        raise NotImplementedError("To be implemented in subclass")
+
+    def receive_transaction(self, txn):
+        raise NotImplementedError("To be implemented in subclass")
 
 # TODO: put following code into main.py
 

@@ -3,6 +3,7 @@
 import itertools
 import random
 import logging
+import json
 
 from piChain.PaxosNetwork import ConnectionManager
 from twisted.internet.task import deferLater
@@ -147,6 +148,18 @@ class Transaction:
     def __hash__(self):
         return 0
 
+    def serialize(self):
+        s = json.dumps({'msg_type': 'TXN', 'creator_id': self.creator_id, 'SEQ': self.SEQ, 'txn_id': self.txn_id,
+                        'content': self.content})
+        return s.encode()
+
+    @staticmethod
+    def unserialize(msg):
+        txn = Transaction(msg['creator_id'], msg['content'])
+        txn.SEQ = msg['SEQ']
+        txn.txn_id = msg['txn_id']
+        return txn
+
 
 class PaxosMessage:
     def __init__(self, msg_type, request_seq):
@@ -166,6 +179,14 @@ class RequestBlockMessage:
     def __init__(self, block_id):
         self.block_id = block_id  # id of block which is missing
 
+    def serialize(self):
+        s = json.dumps({'msg_type': 'RQB', 'block_id': self.block_id})
+        return s.encode()
+
+    @staticmethod
+    def unserialize(msg):
+        return RequestBlockMessage(msg['block_id'])
+
 
 class RespondBlockMessage:
     """Is sent as a response to a `RequestBlockMessage`."""
@@ -176,11 +197,11 @@ class RespondBlockMessage:
 class Node(ConnectionManager):
     new_id = itertools.count()
 
-    def __init__(self, n):
+    def __init__(self, n, uuid):
+
+        super().__init__(uuid)
 
         self.id = next(Node.new_id)
-        super().__init__(str(self.id))
-
         self.reactor = reactor  # must be parametrized for testing (default = global reactor)
 
         self.state = SLOW
@@ -551,3 +572,8 @@ class Node(ConnectionManager):
                 self.oldest_txn = self.new_txs[0]
                 # start a new timeout
                 deferLater(self.reactor, self.get_patience(), self.timeout_over, self.new_txs[0])
+
+    def test(self, obj):
+        rbm = RequestBlockMessage.unserialize(obj)
+        print('test called with', rbm)
+

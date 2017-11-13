@@ -19,7 +19,7 @@ class TestNode(TestCase):
         b.depth = 1
         try_msg.new_block = b
 
-        node = Node(10)
+        node = Node(10, 'a60c0bc6-b85a-47ad-abaa-a59e35822de2')
         node.respond = MagicMock()
 
         node.receive_paxos_message(try_msg)
@@ -37,7 +37,7 @@ class TestNode(TestCase):
         b = Block(1, GENESIS.block_id, ['a'])
         b.depth = 1
 
-        node = Node(10)
+        node = Node(10, 'a60c0bc6-b85a-47ad-abaa-a59e35822de2')
         node.c_request_seq = 1
         node.c_new_block = b
         node.c_votes = 5
@@ -54,7 +54,7 @@ class TestNode(TestCase):
         b = Block(1, GENESIS.block_id, ['a'])
         b.depth = 1
 
-        node = Node(10)
+        node = Node(10, 'a60c0bc6-b85a-47ad-abaa-a59e35822de2')
         node.c_request_seq = 1
         node.c_new_block = b
         node.c_votes = 5
@@ -77,7 +77,7 @@ class TestNode(TestCase):
         try_ok.supp_block = b
         try_ok.prop_block = b
 
-        node = Node(10)
+        node = Node(10, 'a60c0bc6-b85a-47ad-abaa-a59e35822de2')
         node.c_request_seq = 1
         node.c_new_block = b
         node.c_votes = 5
@@ -100,7 +100,7 @@ class TestNode(TestCase):
         propose.new_block = GENESIS
         propose.com_block = GENESIS
 
-        node = Node(10)
+        node = Node(10, 'a60c0bc6-b85a-47ad-abaa-a59e35822de2')
         node.respond = MagicMock()
         node.receive_paxos_message(propose)
 
@@ -116,7 +116,7 @@ class TestNode(TestCase):
 
         propose_ack.com_block = b
 
-        node = Node(10)
+        node = Node(10, 'a60c0bc6-b85a-47ad-abaa-a59e35822de2')
         node.c_request_seq = 1
         node.c_votes = 5
 
@@ -145,7 +145,7 @@ class TestNode(TestCase):
 
         bt.head_block = b4
 
-        node = Node(10)
+        node = Node(10, 'a60c0bc6-b85a-47ad-abaa-a59e35822de2')
         node.new_txs = [Transaction(1, 'a')]
         node.blocktree = bt
 
@@ -167,7 +167,7 @@ class TestNode(TestCase):
         bt.add_block(b4)
         bt.add_block(b5)
 
-        node = Node(10)
+        node = Node(10, 'a60c0bc6-b85a-47ad-abaa-a59e35822de2')
         node.blocktree = bt
 
         assert node.reach_genesis_block(b5)
@@ -193,7 +193,7 @@ class TestNode(TestCase):
         bt.add_block(b4)
         bt.add_block(b5)
 
-        node = Node(10)
+        node = Node(10, 'a60c0bc6-b85a-47ad-abaa-a59e35822de2')
         node.blocktree = bt
 
         req = RequestBlockMessage(b4.block_id)
@@ -221,7 +221,7 @@ class TestNode(TestCase):
 
         bt.head_block = b4
 
-        node = Node(10)
+        node = Node(10, 'a60c0bc6-b85a-47ad-abaa-a59e35822de2')
         node.blocktree = bt
 
         old = node.blocktree.head_block
@@ -242,7 +242,7 @@ class TestNode(TestCase):
     def test_receive_transaction(self):
         txn = Transaction(0, 'a')
 
-        node = Node(10)
+        node = Node(10, 'a60c0bc6-b85a-47ad-abaa-a59e35822de2')
 
         # test timeout
         clock = task.Clock()
@@ -271,7 +271,7 @@ class TestNode(TestCase):
 
         bt.head_block = b4
 
-        node = Node(10)
+        node = Node(10, 'a60c0bc6-b85a-47ad-abaa-a59e35822de2')
         txn = Transaction(1, 'a')
         node.new_txs = [txn]
         node.blocktree = bt

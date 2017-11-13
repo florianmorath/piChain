@@ -2,10 +2,8 @@ from twisted.trial import unittest
 from twisted.test import proto_helpers
 import json
 
-from piChain.PaxosNetwork import ConnectionManager
-
-import logging
-logging.disable(logging.CRITICAL)
+from unittest.mock import MagicMock
+from piChain.PaxosLogic import RequestBlockMessage, Node, Transaction
 
 
 class TestConnection(unittest.TestCase):
@@ -15,8 +13,8 @@ class TestConnection(unittest.TestCase):
 
         """
         self.node_id = 'a60c0bc6-b85a-47ad-abaa-a59e35822de2'
-        self.factory = ConnectionManager(self.node_id)
-        self.proto = self.factory.buildProtocol(('localhost', 0))
+        self.node = Node(3, self.node_id)
+        self.proto = self.node.buildProtocol(('localhost', 0))
 
         # mock the transport -> we do not setup a real connection
         self.transport = proto_helpers.StringTransport()
@@ -48,3 +46,36 @@ class TestConnection(unittest.TestCase):
         self.assertIn(peer_node_id, self.proto.connection_manager.peers)
 
         self.assertEqual(self.transport.value(), b'')
+
+    def test_RQB(self):
+        """test receipt of a RequestBlockMessage.
+
+        """
+
+        self.node.receive_request_blocks_message = MagicMock()
+
+        rbm = RequestBlockMessage(3)
+        s = rbm.serialize()
+        self.proto.lineReceived(s)
+
+        self.assertTrue(self.node.receive_request_blocks_message.called)
+        msg = self.node.receive_request_blocks_message.call_args[0][0]
+        obj = RequestBlockMessage.unserialize(msg)
+        self.assertEqual(type(obj), RequestBlockMessage)
+        self.assertEqual(obj.block_id, 3)
+
+    def test_TXN(self):
+        """test receipt of a Transaction.
+
+        """
+
+        self.node.receive_transaction = MagicMock()
+
+        txn = Transaction(0, 'command1')
+        s = txn.serialize()
+        self.proto.lineReceived(s)
+
+        self.assertTrue(self.node.receive_transaction.called)
+        msg = self.node.receive_transaction.call_args[0][0]
+        obj = Transaction.unserialize(msg)
+        self.assertEqual(type(obj), Transaction)
