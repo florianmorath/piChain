@@ -276,7 +276,7 @@ class Node(ConnectionManager):
         # timeout readjustment
         self.readjust_timeout()
 
-    def receive_request_blocks_message(self, req):
+    def receive_request_blocks_message(self, req, sender):
         """A node is missing a block. Send him the missing block if node has it. Also send him the five ancestors
          of the missing block s.t he can recover faster in case he is missing more blocks.
 
@@ -298,7 +298,7 @@ class Node(ConnectionManager):
 
             # send blocks back
             respond = RespondBlockMessage(blocks)
-            self.respond(respond)
+            self.respond(respond, sender)
 
     def receive_respond_blocks_message(self, resp):
         """Receive the blocks that are missing from a peer. Can directly be added to `self.nodes`.

@@ -200,7 +200,7 @@ class TestNode(TestCase):
         req = RequestBlockMessage(b4.block_id)
 
         node.respond = MagicMock()
-        node.receive_request_blocks_message(req)
+        node.receive_request_blocks_message(req, None)
 
         assert node.respond.called
 

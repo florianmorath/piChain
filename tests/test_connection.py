@@ -49,7 +49,7 @@ class TestConnection(unittest.TestCase):
         self.assertEqual(self.transport.value(), b'')
 
     def test_RQB(self):
-        """test receipt of a RequestBlockMessage.
+        """Test receipt of a RequestBlockMessage.
 
         """
         self.node.receive_request_blocks_message = MagicMock()
@@ -64,7 +64,7 @@ class TestConnection(unittest.TestCase):
         self.assertEqual(obj.block_id, 3)
 
     def test_TXN(self):
-        """test receipt of a Transaction.
+        """Test receipt of a Transaction.
 
         """
         self.node.receive_transaction = MagicMock()

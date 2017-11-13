@@ -164,24 +164,28 @@ class ConnectionManager(Factory):
 
         """
         logging.debug('broadcast')
-        # TODO: go over all connections in self.peers and call sendString on them
+        # go over all connections in self.peers and call sendString on them
+        for k, v in self.peers:
+            data = obj.serialize()
+            v.sendString(data)
 
     def respond(self, obj, sender):
         """
         `obj` will be responded to to the peer which has send the request.
 
         Args:
-            obj: an instance of type Message, Block or Transaction
-
+            obj: an instance of type Message, Block or Transaction.
+            sender (Connection): The connection between this node and the sender of the message.
         """
         logging.info('respond')
-        # TODO: use the sender argument of message_callback
+        # TODO: add sender as argument to methods in parse_msg (the methods which may call respond)
+        sender.sendString(obj.serialize())
 
     def parse_msg(self, msg_type, msg, sender):
         logging.info('parse_msg called')
         if msg_type == 'RQB':
             obj = RequestBlockMessage.unserialize(msg)
-            self.receive_request_blocks_message(obj)
+            self.receive_request_blocks_message(obj, sender)
         elif msg_type == 'TXN':
             obj = Transaction.unserialize(msg)
             self.receive_transaction(obj)
@@ -191,7 +195,7 @@ class ConnectionManager(Factory):
         logging.info('Peer not online (%s): peer node id = %s ', str(failure.type), node_id)
 
     # all the methods which will be called from parse_msg according to msg_type
-    def receive_request_blocks_message(self, req):
+    def receive_request_blocks_message(self, req, sender):
         raise NotImplementedError("To be implemented in subclass")
 
     def receive_transaction(self, txn):
