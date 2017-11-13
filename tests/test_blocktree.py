@@ -1,5 +1,6 @@
 from unittest import TestCase
-from piChain.PaxosLogic import Blocktree, Block, GENESIS
+from piChain.PaxosLogic import Blocktree, GENESIS
+from piChain.messages import Block
 
 import logging
 logging.disable(logging.CRITICAL)

@@ -3,9 +3,9 @@
 import itertools
 import random
 import logging
-import json
 
 from piChain.PaxosNetwork import ConnectionManager
+from piChain.messages import PaxosMessage, Block, RequestBlockMessage, RespondBlockMessage, Transaction
 from twisted.internet.task import deferLater
 from twisted.internet import reactor
 
@@ -16,6 +16,9 @@ SLOW = 2
 
 EXPECTED_RTT = 1.
 EPSILON = 0.001
+
+GENESIS = Block(-1, None, [])
+GENESIS.depth = 0
 
 
 class Blocktree:
@@ -98,100 +101,6 @@ class Blocktree:
             parent = self.nodes.get(block.parent_block_id)
             block.depth = parent.depth + len(block.txs)
         self.nodes.update({block.block_id: block})
-
-
-class Block:
-    new_seq = itertools.count()
-
-    def __init__(self, creator_id, parent_block_id, txs):
-        self.creator_id = creator_id
-        self.SEQ = next(Block.new_seq)
-        self.block_id = int(str(self.creator_id) + str(self.SEQ))  # (creator_id || SEQ)
-        self.creator_state = None
-        self.parent_block_id = parent_block_id  # parent block id
-        self.txs = txs  # list of transactions of type Transaction
-        self.depth = None
-
-    def __lt__(self, other):
-        """Compare two blocks by depth` and `creator_id`."""
-        if self.depth < other.depth:
-            return True
-
-        if self.depth > other.depth:
-            return False
-
-        return self.creator_id < other.creator_id
-
-    def __eq__(self, other):
-        return self.block_id == other.block_id
-
-    def __hash__(self):
-        return 0
-
-
-GENESIS = Block(-1, None, [])
-GENESIS.depth = 0
-
-
-class Transaction:
-    new_seq = itertools.count()
-
-    def __init__(self, creator_id, content):
-        self.creator_id = creator_id
-        self.SEQ = next(Transaction.new_seq)
-        self.txn_id = int(str(self.creator_id) + str(self.SEQ))
-        self.content = content  # a string which can represent a command for example
-
-    def __eq__(self, other):
-        return self.txn_id == other.txn_id
-
-    def __hash__(self):
-        return 0
-
-    def serialize(self):
-        s = json.dumps({'msg_type': 'TXN', 'creator_id': self.creator_id, 'SEQ': self.SEQ, 'txn_id': self.txn_id,
-                        'content': self.content})
-        return s.encode()
-
-    @staticmethod
-    def unserialize(msg):
-        txn = Transaction(msg['creator_id'], msg['content'])
-        txn.SEQ = msg['SEQ']
-        txn.txn_id = msg['txn_id']
-        return txn
-
-
-class PaxosMessage:
-    def __init__(self, msg_type, request_seq):
-        self.msg_type = msg_type  # TRY, TRY_OK, PROPOSE, PROPOSE_ACK, COMMIT
-        self.request_seq = request_seq
-
-        # content variables: are assigned depending on message type
-        self.new_block = None
-        self.prop_block = None
-        self.supp_block = None
-        self.com_block = None
-        self.last_committed_block = None
-
-
-class RequestBlockMessage:
-    """"Is sent if a node is missing a block."""
-    def __init__(self, block_id):
-        self.block_id = block_id  # id of block which is missing
-
-    def serialize(self):
-        s = json.dumps({'msg_type': 'RQB', 'block_id': self.block_id})
-        return s.encode()
-
-    @staticmethod
-    def unserialize(msg):
-        return RequestBlockMessage(msg['block_id'])
-
-
-class RespondBlockMessage:
-    """Is sent as a response to a `RequestBlockMessage`."""
-    def __init__(self, blocks):
-        self.blocks = blocks  # the last 5 blocks starting from block the node misses
 
 
 class Node(ConnectionManager):
@@ -572,8 +481,3 @@ class Node(ConnectionManager):
                 self.oldest_txn = self.new_txs[0]
                 # start a new timeout
                 deferLater(self.reactor, self.get_patience(), self.timeout_over, self.new_txs[0])
-
-    def test(self, obj):
-        rbm = RequestBlockMessage.unserialize(obj)
-        print('test called with', rbm)
-

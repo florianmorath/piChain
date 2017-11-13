@@ -7,6 +7,7 @@ from twisted.internet.endpoints import TCP4ServerEndpoint, TCP4ClientEndpoint
 from twisted.internet import reactor, task
 from twisted.internet.endpoints import connectProtocol
 from twisted.python import log
+from piChain.messages import RequestBlockMessage, Transaction
 
 import logging
 import json
@@ -179,9 +180,11 @@ class ConnectionManager(Factory):
     def parse_msg(self, msg_type, msg, sender):
         logging.info('parse_msg called')
         if msg_type == 'RQB':
-            self.receive_request_blocks_message(msg)
+            obj = RequestBlockMessage.unserialize(msg)
+            self.receive_request_blocks_message(obj)
         elif msg_type == 'TXN':
-            self.receive_transaction(msg)
+            obj = Transaction.unserialize(msg)
+            self.receive_transaction(obj)
 
     @staticmethod
     def handle_connection_error(failure, node_id):

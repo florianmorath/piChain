@@ -2,7 +2,8 @@ from unittest.mock import MagicMock
 from twisted.internet import task
 from twisted.trial.unittest import TestCase
 
-from piChain.PaxosLogic import PaxosMessage, Node, GENESIS, Block, Transaction, Blocktree, RequestBlockMessage
+from piChain.PaxosLogic import Node, GENESIS, Blocktree
+from piChain.messages import PaxosMessage, Block, Transaction, RequestBlockMessage
 
 import logging
 logging.disable(logging.CRITICAL)

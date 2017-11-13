@@ -3,7 +3,8 @@ from twisted.test import proto_helpers
 import json
 
 from unittest.mock import MagicMock
-from piChain.PaxosLogic import RequestBlockMessage, Node, Transaction
+from piChain.PaxosLogic import Node
+from piChain.messages import Transaction, RequestBlockMessage
 
 
 class TestConnection(unittest.TestCase):
@@ -51,7 +52,6 @@ class TestConnection(unittest.TestCase):
         """test receipt of a RequestBlockMessage.
 
         """
-
         self.node.receive_request_blocks_message = MagicMock()
 
         rbm = RequestBlockMessage(3)
@@ -59,8 +59,7 @@ class TestConnection(unittest.TestCase):
         self.proto.lineReceived(s)
 
         self.assertTrue(self.node.receive_request_blocks_message.called)
-        msg = self.node.receive_request_blocks_message.call_args[0][0]
-        obj = RequestBlockMessage.unserialize(msg)
+        obj = self.node.receive_request_blocks_message.call_args[0][0]
         self.assertEqual(type(obj), RequestBlockMessage)
         self.assertEqual(obj.block_id, 3)
 
@@ -68,7 +67,6 @@ class TestConnection(unittest.TestCase):
         """test receipt of a Transaction.
 
         """
-
         self.node.receive_transaction = MagicMock()
 
         txn = Transaction(0, 'command1')
@@ -76,6 +74,5 @@ class TestConnection(unittest.TestCase):
         self.proto.lineReceived(s)
 
         self.assertTrue(self.node.receive_transaction.called)
-        msg = self.node.receive_transaction.call_args[0][0]
-        obj = Transaction.unserialize(msg)
+        obj = self.node.receive_transaction.call_args[0][0]
         self.assertEqual(type(obj), Transaction)
