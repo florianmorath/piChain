@@ -3,22 +3,18 @@
 
 from twisted.internet.protocol import Factory, connectionDone
 from twisted.protocols.basic import LineReceiver
-from twisted.internet.endpoints import TCP4ServerEndpoint, TCP4ClientEndpoint
-from twisted.internet import reactor, task
+from twisted.internet.endpoints import TCP4ClientEndpoint
+from twisted.internet import reactor
 from twisted.internet.endpoints import connectProtocol
-from twisted.python import log
+
 from piChain.messages import RequestBlockMessage, Transaction, Block, RespondBlockMessage, PaxosMessage
+from piChain.config import peers
 
 import logging
 import json
-import argparse
+
 
 logging.basicConfig(level=logging.DEBUG)
-
-# TODO: put node_ids, ports and ips into config file
-node_ids = ['a60c0bc6-b85a-47ad-abaa-a59e35822de2', 'b5564ec6-fd1d-481a-b68b-9b49a0ddd38b',
-            'c1469026-d386-41ee-adc5-9fd7d0bf453e']
-ports = [5999, 5998, 5997]
 
 
 class Connection(LineReceiver):
@@ -125,23 +121,28 @@ class ConnectionManager(Factory):
     def buildProtocol(self, addr):
         return Connection(self)
 
+    @staticmethod
+    def got_protocol(p):
+        """The callback to start the protocol exchange. We let connecting nodes start the hello handshake."""
+        p.send_hello()
+
     def connect_to_nodes(self, node_index):
         """Connect to other peers if not yet connected to them. Ports, ips and node ids of them are all given/predefined.
 
         Args:
-            node_index (int): index of this node into list of ports/ips and node_ids.
+            node_index (str): index of this node into list of peers in config.py.
 
         """
         self.connections_report()
 
         activated = False
-        for index in range(len(node_ids)):
-            if node_ids[index] != node_ids[node_index] and node_ids[index] not in self.peers:
+        for index in range(len(peers)):
+            if peers.get(str(index))[2] != peers.get(node_index)[2] and peers.get(str(index))[2] not in self.peers:
                 activated = True
-                point = TCP4ClientEndpoint(reactor, 'localhost', ports[index])
+                point = TCP4ClientEndpoint(reactor, peers.get(str(index))[0], peers.get(str(index))[1])
                 d = connectProtocol(point, Connection(self))
-                d.addCallback(got_protocol)
-                d.addErrback(self.handle_connection_error, node_ids[index])
+                d.addCallback(self.got_protocol)
+                d.addErrback(self.handle_connection_error, peers.get(str(index))[2])
 
         if not activated:
             self.reconnect_loop.stop()
@@ -179,7 +180,6 @@ class ConnectionManager(Factory):
             sender (Connection): The connection between this node and the sender of the message.
         """
         logging.info('respond')
-        # TODO: add sender as argument to methods in parse_msg (the methods which may call respond
         data = obj.serialize()
         sender.sendLine(data)
 
@@ -220,41 +220,3 @@ class ConnectionManager(Factory):
 
     def receive_paxos_message(self, message, sender):
         raise NotImplementedError("To be implemented in subclass")
-
-
-# TODO: put following code into main.py
-def got_protocol(p):
-    """The callback to start the protocol exchange. We let connecting nodes start the hello handshake."""
-    p.send_hello()
-
-
-def main():
-    """
-    Entry point. First starts a server listening on a given port. Then connects to other peers. Also starts the reactor.
-
-    """
-    parser = argparse.ArgumentParser()
-
-    # start server
-    parser.add_argument("node_index")
-    args = parser.parse_args()
-    node_index = int(args.node_index)
-
-    cm = ConnectionManager(node_ids[node_index])
-
-    endpoint = TCP4ServerEndpoint(reactor, ports[node_index])
-    endpoint.listen(cm)
-
-    # "client part" -> connect to all servers -> add handshake callback
-    cm.reconnect_loop = task.LoopingCall(cm.connect_to_nodes, node_index)
-    logging.info('Connection synchronization start...')
-    deferred = cm.reconnect_loop.start(10, True)
-    deferred.addErrback(log.err)
-
-    # start reactor
-    logging.info('start reactor')
-    reactor.run()
-
-
-if __name__ == "__main__":
-    main()

@@ -124,15 +124,3 @@ class Transaction:
         txn = jsonpickle.decode(msg['obj_str'])
         return txn
 
-    # could also use json only
-    # def serialize(self):
-    #     s = json.dumps({'msg_type': 'TXN', 'creator_id': self.creator_id, 'SEQ': self.SEQ, 'txn_id': self.txn_id,
-    #                     'content': self.content})
-    #     return s.encode()
-    #
-    # @staticmethod
-    # def unserialize(msg):
-    #     txn = Transaction(msg['creator_id'], msg['content'])
-    #     txn.SEQ = msg['SEQ']
-    #     txn.txn_id = msg['txn_id']
-    #     return txn
