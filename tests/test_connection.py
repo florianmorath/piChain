@@ -76,3 +76,33 @@ class TestConnection(unittest.TestCase):
         self.assertTrue(self.node.receive_transaction.called)
         obj = self.node.receive_transaction.call_args[0][0]
         self.assertEqual(type(obj), Transaction)
+
+    def test_broadcast(self):
+        # setup another connection
+        self.proto2 = self.node.buildProtocol(('localhost', 2))
+        self.transport = proto_helpers.StringTransport()
+        self.proto2.makeConnection(self.transport)
+
+        # peer 1 connects/sends hello handshake
+        s = json.dumps({'msg_type': 'ACK', 'nodeid': 'b5564ec6-fd1d-481a-b68b-9b49a0ddd38b'})
+        self.proto.lineReceived(s.encode())
+
+        # peer 1 connects/sends hello handshake
+        s = json.dumps({'msg_type': 'ACK', 'nodeid': 'c5564ec6-fd1d-481a-b68b-9b49a0ddd38b'})
+        self.proto2.lineReceived(s.encode())
+
+        # clear the transport
+        self.proto.transport.clear()
+        self.proto2.transport.clear()
+
+        rbm = RequestBlockMessage(3)
+        self.node.broadcast(rbm)
+
+        self.assertEqual(b'{"msg_type": "RQB", "block_id": 3}\r\n', self.proto.transport.value())
+        self.assertEqual(b'{"msg_type": "RQB", "block_id": 3}\r\n', self.proto2.transport.value())
+
+    def test_respond(self):
+        rbm = RequestBlockMessage(3)
+        self.node.respond(rbm, self.proto)
+
+        self.assertEqual(b'{"msg_type": "RQB", "block_id": 3}\r\n', self.proto.transport.value())

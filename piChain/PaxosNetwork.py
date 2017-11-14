@@ -164,12 +164,13 @@ class ConnectionManager(Factory):
 
         """
         logging.debug('broadcast')
-        # go over all connections in self.peers and call sendString on them
-        for k, v in self.peers:
+        # go over all connections in self.peers and call sendLine on them
+        for k, v in self.peers.items():
             data = obj.serialize()
-            v.sendString(data)
+            v.sendLine(data)
 
-    def respond(self, obj, sender):
+    @staticmethod
+    def respond(obj, sender):
         """
         `obj` will be responded to to the peer which has send the request.
 
@@ -179,7 +180,7 @@ class ConnectionManager(Factory):
         """
         logging.info('respond')
         # TODO: add sender as argument to methods in parse_msg (the methods which may call respond)
-        sender.sendString(obj.serialize())
+        sender.sendLine(obj.serialize())
 
     def parse_msg(self, msg_type, msg, sender):
         logging.info('parse_msg called')
@@ -201,9 +202,8 @@ class ConnectionManager(Factory):
     def receive_transaction(self, txn):
         raise NotImplementedError("To be implemented in subclass")
 
+
 # TODO: put following code into main.py
-
-
 def got_protocol(p):
     """The callback to start the protocol exchange. We let connecting nodes start the hello handshake."""
     p.send_hello()
