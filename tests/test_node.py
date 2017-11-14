@@ -23,7 +23,7 @@ class TestNode(TestCase):
         node = Node(10, 'a60c0bc6-b85a-47ad-abaa-a59e35822de2')
         node.respond = MagicMock()
 
-        node.receive_paxos_message(try_msg)
+        node.receive_paxos_message(try_msg, None)
         assert node.respond.called
         assert node.s_max_block == b
 
@@ -43,7 +43,7 @@ class TestNode(TestCase):
         node.c_new_block = b
         node.c_votes = 5
         node.broadcast = MagicMock()
-        node.receive_paxos_message(try_ok)
+        node.receive_paxos_message(try_ok, None)
 
         assert node.broadcast.called
         assert node.c_com_block == node.c_new_block
@@ -63,7 +63,7 @@ class TestNode(TestCase):
         node.c_prop_block = GENESIS
 
         node.broadcast = MagicMock()
-        node.receive_paxos_message(try_ok)
+        node.receive_paxos_message(try_ok, None)
 
         assert node.broadcast.called
         assert node.c_supp_block == GENESIS
@@ -84,7 +84,7 @@ class TestNode(TestCase):
         node.c_votes = 5
 
         node.broadcast = MagicMock()
-        node.receive_paxos_message(try_ok)
+        node.receive_paxos_message(try_ok, None)
 
         assert node.broadcast.called
         assert node.c_prop_block == b
@@ -103,7 +103,7 @@ class TestNode(TestCase):
 
         node = Node(10, 'a60c0bc6-b85a-47ad-abaa-a59e35822de2')
         node.respond = MagicMock()
-        node.receive_paxos_message(propose)
+        node.receive_paxos_message(propose, None)
 
         assert node.respond.called
         assert node.s_prop_block == propose.com_block
@@ -122,7 +122,7 @@ class TestNode(TestCase):
         node.c_votes = 5
 
         node.broadcast = MagicMock()
-        node.receive_paxos_message(propose_ack)
+        node.receive_paxos_message(propose_ack, None)
 
         assert node.broadcast.called
 

@@ -7,7 +7,7 @@ from twisted.internet.endpoints import TCP4ServerEndpoint, TCP4ClientEndpoint
 from twisted.internet import reactor, task
 from twisted.internet.endpoints import connectProtocol
 from twisted.python import log
-from piChain.messages import RequestBlockMessage, Transaction
+from piChain.messages import RequestBlockMessage, Transaction, Block, RespondBlockMessage, PaxosMessage
 
 import logging
 import json
@@ -179,8 +179,9 @@ class ConnectionManager(Factory):
             sender (Connection): The connection between this node and the sender of the message.
         """
         logging.info('respond')
-        # TODO: add sender as argument to methods in parse_msg (the methods which may call respond)
-        sender.sendLine(obj.serialize())
+        # TODO: add sender as argument to methods in parse_msg (the methods which may call respond
+        data = obj.serialize()
+        sender.sendLine(data)
 
     def parse_msg(self, msg_type, msg, sender):
         logging.info('parse_msg called')
@@ -190,6 +191,15 @@ class ConnectionManager(Factory):
         elif msg_type == 'TXN':
             obj = Transaction.unserialize(msg)
             self.receive_transaction(obj)
+        elif msg_type == 'BLK':
+            obj = Block.unserialize(msg)
+            self.receive_block(obj)
+        elif msg_type == 'RSB':
+            obj = RespondBlockMessage.unserialize(msg)
+            self.receive_respond_blocks_message(obj)
+        elif msg_type == 'PAM':
+            obj = PaxosMessage.unserialize(msg)
+            self.receive_paxos_message(obj, sender)
 
     @staticmethod
     def handle_connection_error(failure, node_id):
@@ -200,6 +210,15 @@ class ConnectionManager(Factory):
         raise NotImplementedError("To be implemented in subclass")
 
     def receive_transaction(self, txn):
+        raise NotImplementedError("To be implemented in subclass")
+
+    def receive_block(self, block):
+        raise NotImplementedError("To be implemented in subclass")
+
+    def receive_respond_blocks_message(self, resp):
+        raise NotImplementedError("To be implemented in subclass")
+
+    def receive_paxos_message(self, message, sender):
         raise NotImplementedError("To be implemented in subclass")
 
 

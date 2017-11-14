@@ -141,11 +141,12 @@ class Node(ConnectionManager):
 
         self.commit_running = False
 
-    def receive_paxos_message(self, message):
+    def receive_paxos_message(self, message, sender):
         """React on a received `message`. This method implements the main functionality of the paxos algorithm.
 
         Args:
             message (PaxosMessage): Message received.
+            sender (Connection): Connection instance of the sender.
 
         """
         if message.msg_type == 'TRY':
@@ -159,7 +160,7 @@ class Node(ConnectionManager):
                 try_ok = PaxosMessage('TRY_OK', message.request_seq)
                 try_ok.prop_block = self.s_prop_block
                 try_ok.supp_block = self.s_supp_block
-                self.respond(try_ok)
+                self.respond(try_ok, sender)
 
         elif message.msg_type == 'TRY_OK':
             # check if message is not outdated
@@ -205,7 +206,7 @@ class Node(ConnectionManager):
                 # create a PROPOSE_ACK message
                 propose_ack = PaxosMessage('PROPOSE_ACK', message.request_seq)
                 propose_ack.com_block = message.com_block
-                self.respond(propose_ack)
+                self.respond(propose_ack, sender)
 
         elif message.msg_type == 'PROPOSE_ACK':
             # check if message is not outdated
@@ -281,7 +282,8 @@ class Node(ConnectionManager):
          of the missing block s.t he can recover faster in case he is missing more blocks.
 
         Args:
-            req (RequestBlockMessage): message that requests a missing block
+            req (RequestBlockMessage): Message that requests a missing block.
+            sender (Connection): Connection instance form the sender.
 
         """
         if self.blocktree.nodes.get(req.block_id) is not None:

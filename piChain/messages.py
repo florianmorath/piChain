@@ -2,6 +2,7 @@
 
 import itertools
 import json
+import jsonpickle
 
 
 class PaxosMessage:
@@ -16,6 +17,16 @@ class PaxosMessage:
         self.com_block = None
         self.last_committed_block = None
 
+    def serialize(self):
+        obj_str = jsonpickle.encode(self)
+        s = json.dumps({'msg_type': 'PAM', 'obj_str': obj_str})
+        return s.encode()
+
+    @staticmethod
+    def unserialize(msg):
+        pam = jsonpickle.decode(msg['obj_str'])
+        return pam
+
 
 class RequestBlockMessage:
     """"Is sent if a node is missing a block."""
@@ -23,18 +34,30 @@ class RequestBlockMessage:
         self.block_id = block_id  # id of block which is missing
 
     def serialize(self):
-        s = json.dumps({'msg_type': 'RQB', 'block_id': self.block_id})
+        obj_str = jsonpickle.encode(self)
+        s = json.dumps({'msg_type': 'RQB', 'obj_str': obj_str})
         return s.encode()
 
     @staticmethod
     def unserialize(msg):
-        return RequestBlockMessage(msg['block_id'])
+        rqb = jsonpickle.decode(msg['obj_str'])
+        return rqb
 
 
 class RespondBlockMessage:
     """Is sent as a response to a `RequestBlockMessage`."""
     def __init__(self, blocks):
         self.blocks = blocks  # the last 5 blocks starting from block the node misses
+
+    def serialize(self):
+        obj_str = jsonpickle.encode(self)
+        s = json.dumps({'msg_type': 'RSB', 'obj_str': obj_str})
+        return s.encode()
+
+    @staticmethod
+    def unserialize(msg):
+        rsb = jsonpickle.decode(msg['obj_str'])
+        return rsb
 
 
 class Block:
@@ -65,6 +88,16 @@ class Block:
     def __hash__(self):
         return 0
 
+    def serialize(self):
+        obj_str = jsonpickle.encode(self)
+        s = json.dumps({'msg_type': 'BLK', 'obj_str': obj_str})
+        return s.encode()
+
+    @staticmethod
+    def unserialize(msg):
+        blk = jsonpickle.decode(msg['obj_str'])
+        return blk
+
 
 class Transaction:
     new_seq = itertools.count()
@@ -82,13 +115,24 @@ class Transaction:
         return 0
 
     def serialize(self):
-        s = json.dumps({'msg_type': 'TXN', 'creator_id': self.creator_id, 'SEQ': self.SEQ, 'txn_id': self.txn_id,
-                        'content': self.content})
+        obj_str = jsonpickle.encode(self)
+        s = json.dumps({'msg_type': 'TXN', 'obj_str': obj_str})
         return s.encode()
 
     @staticmethod
     def unserialize(msg):
-        txn = Transaction(msg['creator_id'], msg['content'])
-        txn.SEQ = msg['SEQ']
-        txn.txn_id = msg['txn_id']
+        txn = jsonpickle.decode(msg['obj_str'])
         return txn
+
+    # could also use json only
+    # def serialize(self):
+    #     s = json.dumps({'msg_type': 'TXN', 'creator_id': self.creator_id, 'SEQ': self.SEQ, 'txn_id': self.txn_id,
+    #                     'content': self.content})
+    #     return s.encode()
+    #
+    # @staticmethod
+    # def unserialize(msg):
+    #     txn = Transaction(msg['creator_id'], msg['content'])
+    #     txn.SEQ = msg['SEQ']
+    #     txn.txn_id = msg['txn_id']
+    #     return txn
