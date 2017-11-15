@@ -13,8 +13,7 @@ class TestConnection(unittest.TestCase):
         """Will be called by unittest before each test method and is used for setup purposes.
 
         """
-        node_id = 'a60c0bc6-b85a-47ad-abaa-a59e35822de2'
-        self.node = Node(0, 3, node_id)
+        self.node = Node(0)
         self.proto = self.node.buildProtocol(('localhost', 0))
 
         # mock the transport -> we do not setup a real connection
@@ -163,7 +162,7 @@ class TestConnection(unittest.TestCase):
         proto2.transport.clear()
 
         rbm = RequestBlockMessage(3)
-        self.node.broadcast(rbm)
+        self.node.broadcast(rbm, 'RQB')
 
         s = json.loads(self.proto.transport.value())
         obj = RequestBlockMessage.unserialize(s)

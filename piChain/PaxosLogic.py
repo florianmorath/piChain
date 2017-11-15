@@ -5,6 +5,7 @@ import logging
 
 from piChain.PaxosNetwork import ConnectionManager
 from piChain.messages import PaxosMessage, Block, RequestBlockMessage, RespondBlockMessage, Transaction
+from piChain.config import peers
 from twisted.internet.task import deferLater
 from twisted.internet import reactor
 
@@ -104,11 +105,11 @@ class Blocktree:
 
 class Node(ConnectionManager):
 
-    def __init__(self, node_index, n, uuid):
+    def __init__(self, node_index):
 
-        super().__init__(uuid)
+        super().__init__(node_index)
 
-        self.id = node_index  # unique id of node (type = int)
+        # self.id = node_index  # unique id of node (type = int)
         self.reactor = reactor  # must be parametrized for testing (default = global reactor)
 
         self.state = SLOW
@@ -117,7 +118,7 @@ class Node(ConnectionManager):
         if self.id == 0:
             self.state = QUICK
 
-        self.n = n  # total number of nodes
+        self.n = len(peers)  # total number of nodes
 
         self.blocktree = Blocktree()
 
@@ -152,6 +153,7 @@ class Node(ConnectionManager):
             sender (Connection): Connection instance of the sender.
 
         """
+        logging.debug('message type = %s', message.msg_type)
         if message.msg_type == 'TRY':
             # make sure last commited block of sender is also committed by this node
             self.commit(message.last_committed_block)
@@ -198,7 +200,7 @@ class Node(ConnectionManager):
                 propose = PaxosMessage('PROPOSE', self.c_request_seq)
                 propose.com_block = self.c_com_block
                 propose.new_block = self.c_new_block
-                self.broadcast(propose)
+                self.broadcast(propose, 'PROPOSE')
 
         elif message.msg_type == 'PROPOSE':
             # if did not receive a try message with a deeper new block in mean time can store proposed block on server
@@ -225,7 +227,8 @@ class Node(ConnectionManager):
                 # create commit message
                 commit = PaxosMessage('COMMIT', self.c_request_seq)
                 commit.com_block = message.com_block
-                self.broadcast(commit)
+                self.broadcast(commit, 'COMMIT')
+                self.commit(commit.com_block)
 
                 # allow new paxos instance
                 self.commit_running = False
@@ -266,6 +269,7 @@ class Node(ConnectionManager):
         """
         # make sure block is reachable
         if not self.reach_genesis_block(block):
+            logging.debug('block not reachable')
             return
 
         # demote node if necessary
@@ -273,6 +277,7 @@ class Node(ConnectionManager):
             self.state = SLOW
 
         if not self.blocktree.valid_block(block):
+            logging.debug('block invalid')
             return
 
         self.move_to_block(block)
@@ -356,7 +361,7 @@ class Node(ConnectionManager):
 
             # broadcast txs in to_broadcast
             for tx in to_broadcast:
-                self.broadcast(tx)
+                self.broadcast(tx, 'TXN')
             self.readjust_timeout()
 
     def commit(self, block):
@@ -366,6 +371,7 @@ class Node(ConnectionManager):
             block (Block): Block to be committed.
 
         """
+        logging.debug('committing a block: with block id = %s', str(block.block_id))
         # make sure block is reachable
         if not self.reach_genesis_block(block):
             return
@@ -373,6 +379,9 @@ class Node(ConnectionManager):
         if not self.blocktree.ancestor(block, self.blocktree.committed_block):
             self.blocktree.committed_block = block
             self.move_to_block(block)
+
+        # print out ids of all committed blocks so far (-> testing purpose)
+        self.committed_blocks_report()
 
     def reach_genesis_block(self, block):
         """Check if there is a path from `block` to `GENESIS` block. If a block on the path is not contained in
@@ -394,7 +403,7 @@ class Node(ConnectionManager):
             else:
                 self.sync_mode = True
                 req = RequestBlockMessage(b.parent_block_id)
-                self.broadcast(req)
+                self.broadcast(req, 'RQB')
                 return False
         return True
 
@@ -405,6 +414,7 @@ class Node(ConnectionManager):
             Block: The block that was created.
 
         """
+        logging.debug('create a block')
         # store depth of current head_block (will be parent of new block)
         d = self.blocktree.head_block.depth
 
@@ -465,20 +475,23 @@ class Node(ConnectionManager):
             b = self.create_block()
 
             self.move_to_block(b)
-            self.broadcast(b)
+            self.broadcast(b, 'BLK')
 
             #  if quick node then start a new instance of paxos
             if self.state == QUICK and not self.commit_running:
+                logging.debug('start an new instance of paxos')
                 self.commit_running = True
                 self.c_votes = 0
                 self.c_request_seq += 1
                 self.c_supp_block = None
                 self.c_prop_block = None
+                self.c_new_block = b
 
                 # create try message
                 try_msg = PaxosMessage('TRY', self.c_request_seq)
                 try_msg.last_committed_block = self.blocktree.committed_block
-                self.broadcast(try_msg)
+                try_msg.new_block = self.c_new_block
+                self.broadcast(try_msg, 'TRY')
 
     def readjust_timeout(self):
         """Is called if `new_txs` changed and thus the `oldest_txn` may be removed."""
@@ -486,3 +499,26 @@ class Node(ConnectionManager):
                 self.oldest_txn = self.new_txs[0]
                 # start a new timeout
                 deferLater(self.reactor, self.get_patience(), self.timeout_over, self.new_txs[0])
+
+    def committed_blocks_report(self):
+        """Print out all ids of committed blocks so far. For testing purpose."""
+        b_id = self.blocktree.committed_block.block_id
+        logging.debug('***********************')
+        logging.debug('All committed blocks: ')
+        logging.debug('block id = %s', str(b_id))
+        while b_id != GENESIS.block_id:
+            b_id = self.blocktree.nodes.get(b_id).parent_block_id
+            logging.debug('block id = %s', str(b_id))
+        logging.debug('***********************')
+
+    def test(self):
+        """start the paxos algorithm by bringing a Transaction in circulation (test purpose -> will be deleted)."""
+        if self.id == 2:
+            logging.debug('test called')
+
+            # create a Transaction and send it to node with id == 0 (the quick node)
+            txn = Transaction(0, 'command1')
+            connection = self.peers.get(peers.get('0')[2])
+            if connection is not None:
+                logging.debug('txn send to node 0')
+                connection.sendLine(txn.serialize())

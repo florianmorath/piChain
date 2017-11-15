@@ -41,7 +41,8 @@ class Connection(LineReceiver):
         logging.info('Connected to %s.', str(self.transport.getPeer()))
 
     def connectionLost(self, reason=connectionDone):
-        logging.info('Lost connection to %s:%s', str(self.transport.getPeer()), reason.getErrorMessage())
+        logging.info('Lost connection to %s with id %s: %s',
+                     str(self.transport.getPeer()), self.connection_manager.id, reason.getErrorMessage())
 
         # remove peer_node_id from connection_manager.peers
         if self.peer_node_id is not None and self.peer_node_id in self.connection_manager.peers:
@@ -108,15 +109,17 @@ class ConnectionManager(Factory):
     Attributes:
         peers (dict of String: Connection): The key represents the node_id and the value the Connection to the node
             with this node_id.
-        node_id (String): unique identifier of this factory which represents a node.
+        node_id (String): unique identifier of this factory which represents a node (uuid).
         message_callback (Callable with signature (msg_type, data, sender: Connection)): Received lines are delegated
             to this callback if they are not handled inside Connection itself.
+        id (int): index of this node into list of peers in config.py.
 
     """
-    def __init__(self, node_id):
+    def __init__(self, index):
         self.peers = {}
-        self.node_id = node_id
+        self.node_id = peers.get(str(index))[2]
         self.message_callback = self.parse_msg
+        self.id = index
 
     def buildProtocol(self, addr):
         return Connection(self)
@@ -148,6 +151,9 @@ class ConnectionManager(Factory):
             self.reconnect_loop.stop()
             logging.info('Connection synchronization finished: Connected to all peers')
 
+            # start the paxos algorithm by bringing a Transaction in circulation (test purpose)
+            self.test()
+
     def connections_report(self):
         logging.info('"""""""""""""""""')
         logging.info('Connections: local node id = %s', self.node_id)
@@ -156,15 +162,16 @@ class ConnectionManager(Factory):
                          value.transport.getHost(), self.node_id, value.transport.getPeer(), value.peer_node_id)
         logging.info('"""""""""""""""""')
 
-    def broadcast(self, obj):
+    def broadcast(self, obj, msg_type):
         """
         `obj` will be broadcast to all the peers.
 
         Args:
             obj: an instance of type Message, Block or Transaction
+            msg_type (str): 3 char description of message type
 
         """
-        logging.debug('broadcast')
+        logging.debug('broadcast: %s', msg_type)
         # go over all connections in self.peers and call sendLine on them
         for k, v in self.peers.items():
             data = obj.serialize()
@@ -184,7 +191,7 @@ class ConnectionManager(Factory):
         sender.sendLine(data)
 
     def parse_msg(self, msg_type, msg, sender):
-        logging.info('parse_msg called')
+        logging.info('parse_msg called with msg_type = %s', msg_type)
         if msg_type == 'RQB':
             obj = RequestBlockMessage.unserialize(msg)
             self.receive_request_blocks_message(obj, sender)
@@ -200,6 +207,10 @@ class ConnectionManager(Factory):
         elif msg_type == 'PAM':
             obj = PaxosMessage.unserialize(msg)
             self.receive_paxos_message(obj, sender)
+
+    def test(self):
+        """start the paxos algorithm by bringing a Transaction in circulation (test purpose -> will be deleted)."""
+        raise NotImplementedError("To be implemented in subclass")
 
     @staticmethod
     def handle_connection_error(failure, node_id):

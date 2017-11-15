@@ -20,7 +20,7 @@ def main():
     args = parser.parse_args()
     node_index = args.node_index
 
-    node = Node(int(node_index), len(peers), peers.get(node_index)[2])
+    node = Node(int(node_index))
 
     endpoint = TCP4ServerEndpoint(reactor, peers.get(node_index)[1])
     endpoint.listen(node)
