@@ -14,7 +14,7 @@ class TestConnection(unittest.TestCase):
 
         """
         node_id = 'a60c0bc6-b85a-47ad-abaa-a59e35822de2'
-        self.node = Node(3, node_id)
+        self.node = Node(0, 3, node_id)
         self.proto = self.node.buildProtocol(('localhost', 0))
 
         # mock the transport -> we do not setup a real connection

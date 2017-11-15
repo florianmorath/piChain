@@ -1,6 +1,5 @@
 """This module implements the logic of the paxos algorithm."""
 
-import itertools
 import random
 import logging
 
@@ -104,16 +103,20 @@ class Blocktree:
 
 
 class Node(ConnectionManager):
-    new_id = itertools.count()
 
-    def __init__(self, n, uuid):
+    def __init__(self, node_index, n, uuid):
 
         super().__init__(uuid)
 
-        self.id = next(Node.new_id)
+        self.id = node_index  # unique id of node (type = int)
         self.reactor = reactor  # must be parametrized for testing (default = global reactor)
 
         self.state = SLOW
+
+        # ensure that exactly one node will be QUICK in beginning
+        if self.id == 0:
+            self.state = QUICK
+
         self.n = n  # total number of nodes
 
         self.blocktree = Blocktree()

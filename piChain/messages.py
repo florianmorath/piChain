@@ -123,4 +123,3 @@ class Transaction:
     def unserialize(msg):
         txn = jsonpickle.decode(msg['obj_str'])
         return txn
-
