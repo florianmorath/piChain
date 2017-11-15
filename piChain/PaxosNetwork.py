@@ -151,8 +151,8 @@ class ConnectionManager(Factory):
             self.reconnect_loop.stop()
             logging.info('Connection synchronization finished: Connected to all peers')
 
-            # start the paxos algorithm by bringing a Transaction in circulation (test purpose)
-            self.test()
+            # start the paxos algorithm with some test scenarios (test purpose)
+            self.scenario1()
 
     def connections_report(self):
         logging.info('"""""""""""""""""')
@@ -208,8 +208,7 @@ class ConnectionManager(Factory):
             obj = PaxosMessage.unserialize(msg)
             self.receive_paxos_message(obj, sender)
 
-    def test(self):
-        """start the paxos algorithm by bringing a Transaction in circulation (test purpose -> will be deleted)."""
+    def scenario1(self):
         raise NotImplementedError("To be implemented in subclass")
 
     @staticmethod

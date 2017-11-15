@@ -424,7 +424,8 @@ class Node(ConnectionManager):
         # compute its depth (will be fixed -> depth field is only set once)
         b.depth = d + len(b.txs)
 
-        self.new_txs.clear()
+        # create a new, empty list (do not use clear!)
+        self.new_txs = []
 
         # add block to blocktree
         self.blocktree.nodes.update({b.block_id: b})
@@ -502,22 +503,26 @@ class Node(ConnectionManager):
 
     def committed_blocks_report(self):
         """Print out all ids of committed blocks so far. For testing purpose."""
-        b_id = self.blocktree.committed_block.block_id
+        b = self.blocktree.committed_block
         logging.debug('***********************')
         logging.debug('All committed blocks: ')
-        logging.debug('block id = %s', str(b_id))
-        while b_id != GENESIS.block_id:
-            b_id = self.blocktree.nodes.get(b_id).parent_block_id
-            logging.debug('block id = %s', str(b_id))
+        logging.debug('block = %s:', str(b.serialize()))
+
+        while b != GENESIS:
+            b = self.blocktree.nodes.get(b.parent_block_id)
+            logging.debug('block = %s:', str(b.serialize()))
         logging.debug('***********************')
 
-    def test(self):
-        """start the paxos algorithm by bringing a Transaction in circulation (test purpose -> will be deleted)."""
+    def scenario1(self):
+        """start the paxos algorithm by bringing a Transaction in circulation (test purpose -> will be deleted).
+
+        This scenario assumes a healthy state i.e one quick node and the others are slow.
+        """
         if self.id == 2:
-            logging.debug('test called')
+            logging.debug('scenario1 called')
 
             # create a Transaction and send it to node with id == 0 (the quick node)
-            txn = Transaction(0, 'command1')
+            txn = Transaction(2, 'command1')
             connection = self.peers.get(peers.get('0')[2])
             if connection is not None:
                 logging.debug('txn send to node 0')
