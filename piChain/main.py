@@ -1,8 +1,11 @@
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.internet import reactor, task
+from twisted.internet.task import deferLater
 from twisted.python import log
+
 from piChain.PaxosLogic import Node
 from piChain.config import peers
+from tests.integration_scenarios import IntegrationScenarios
 
 import argparse
 import logging
@@ -30,6 +33,9 @@ def main():
     logging.info('Connection synchronization start...')
     deferred = node.reconnect_loop.start(5, True)
     deferred.addErrback(log.err)
+
+    # start the paxos algorithm with some test scenarios (test purpose -> will be deleted)
+    deferLater(reactor, 10, IntegrationScenarios.scenario10, node)
 
     # start reactor
     logging.info('start reactor')

@@ -6,11 +6,9 @@ from twisted.protocols.basic import LineReceiver
 from twisted.internet.endpoints import TCP4ClientEndpoint
 from twisted.internet import reactor
 from twisted.internet.endpoints import connectProtocol
-from twisted.internet.task import deferLater
 
 from piChain.messages import RequestBlockMessage, Transaction, Block, RespondBlockMessage, PaxosMessage
 from piChain.config import peers
-from tests.integration_scenarios import scenario5
 
 import logging
 import json
@@ -153,9 +151,6 @@ class ConnectionManager(Factory):
         if not activated:
             self.reconnect_loop.stop()
             logging.info('Connection synchronization finished: Connected to all peers')
-
-            # start the paxos algorithm with some test scenarios (test purpose)
-            deferLater(reactor, 10, scenario5, self)
 
     def connections_report(self):
         logging.info('"""""""""""""""""')

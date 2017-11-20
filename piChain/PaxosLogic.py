@@ -240,6 +240,7 @@ class Node(ConnectionManager):
             self.s_supp_block = None
             self.s_prop_block = None
             self.s_max_block = GENESIS
+            self.commit_running = False
 
     def receive_transaction(self, txn):
         """React on a received `txn` depending on state.
@@ -278,6 +279,8 @@ class Node(ConnectionManager):
 
         # demote node if necessary
         if self.blocktree.head_block < block or block.creator_state == QUICK:
+            if self.state != SLOW:
+                logging.debug('Demoted to slow. State = %s', str(self.state))
             self.state = SLOW
 
         if not self.blocktree.valid_block(block):
@@ -436,7 +439,9 @@ class Node(ConnectionManager):
         self.blocktree.nodes.update({b.block_id: b})
 
         # promote node
-        self.state = max(QUICK, self.state - 1)
+        if self.state != QUICK:
+            self.state = max(QUICK, self.state - 1)
+            logging.debug('Got promoted. State = %s', str(self.state))
 
         # add state of creator node to block
         b.creator_state = self.state
