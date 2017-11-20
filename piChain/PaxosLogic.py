@@ -523,7 +523,7 @@ class Node(ConnectionManager):
 
             # create a Transaction and send it to node with id == 0 (the quick node)
             txn = Transaction(2, 'command1')
-            connection = self.peers.get(peers.get('0')[2])
+            connection = self.peers.get(peers.get('0').get('uuid'))
             if connection is not None:
                 logging.debug('txn send to node 0')
                 connection.sendLine(txn.serialize())

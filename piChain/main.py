@@ -10,7 +10,7 @@ import logging
 
 def main():
     """
-    Entry point. First starts a server listening on a port given in confg file. Then connects to other peers.
+    Entry point. First starts a server listening on a port given in confg file. Then connect to other peers.
 
     """
     parser = argparse.ArgumentParser()
@@ -22,7 +22,7 @@ def main():
 
     node = Node(int(node_index))
 
-    endpoint = TCP4ServerEndpoint(reactor, peers.get(node_index)[1])
+    endpoint = TCP4ServerEndpoint(reactor, peers.get(node_index).get('port'))
     endpoint.listen(node)
 
     # "client part" -> connect to all servers -> add handshake callback

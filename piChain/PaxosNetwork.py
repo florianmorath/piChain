@@ -117,7 +117,7 @@ class ConnectionManager(Factory):
     """
     def __init__(self, index):
         self.peers = {}
-        self.node_id = peers.get(str(index))[2]
+        self.node_id = peers.get(str(index)).get('uuid')
         self.message_callback = self.parse_msg
         self.id = index
 
@@ -140,12 +140,13 @@ class ConnectionManager(Factory):
 
         activated = False
         for index in range(len(peers)):
-            if peers.get(str(index))[2] != peers.get(node_index)[2] and peers.get(str(index))[2] not in self.peers:
+            if peers.get(str(index)).get('uuid') != peers.get(node_index).get('uuid') and \
+                            peers.get(str(index)).get('uuid') not in self.peers:
                 activated = True
-                point = TCP4ClientEndpoint(reactor, peers.get(str(index))[0], peers.get(str(index))[1])
+                point = TCP4ClientEndpoint(reactor, peers.get(str(index)).get('ip'), peers.get(str(index)).get('port'))
                 d = connectProtocol(point, Connection(self))
                 d.addCallback(self.got_protocol)
-                d.addErrback(self.handle_connection_error, peers.get(str(index))[2])
+                d.addErrback(self.handle_connection_error, peers.get(str(index)).get('uuid'))
 
         if not activated:
             self.reconnect_loop.stop()
