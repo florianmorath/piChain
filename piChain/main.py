@@ -28,7 +28,7 @@ def main():
     # "client part" -> connect to all servers -> add handshake callback
     node.reconnect_loop = task.LoopingCall(node.connect_to_nodes, node_index)
     logging.info('Connection synchronization start...')
-    deferred = node.reconnect_loop.start(10, True)
+    deferred = node.reconnect_loop.start(5, True)
     deferred.addErrback(log.err)
 
     # start reactor

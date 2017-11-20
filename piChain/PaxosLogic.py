@@ -250,6 +250,7 @@ class Node(ConnectionManager):
         """
         # check if txn has already been seen
         if txn not in self.known_txs:
+            logging.debug('txn has not yet been seen')
             # add txn to set of seen txs
             self.known_txs.add(txn)
 
@@ -258,7 +259,10 @@ class Node(ConnectionManager):
             if len(self.new_txs) == 1:
                 self.oldest_txn = txn
                 # start a timeout
+                logging.debug('start timeout')
                 deferLater(self.reactor, self.get_patience(), self.timeout_over, txn)
+        else:
+            logging.debug('txn has already been seen')
 
     def receive_block(self, block):
         """React on a received `block`.
@@ -371,17 +375,18 @@ class Node(ConnectionManager):
             block (Block): Block to be committed.
 
         """
-        logging.debug('committing a block: with block id = %s', str(block.block_id))
         # make sure block is reachable
         if not self.reach_genesis_block(block):
             return
 
-        if not self.blocktree.ancestor(block, self.blocktree.committed_block):
+        if not self.blocktree.ancestor(block, self.blocktree.committed_block) and \
+           block != self.blocktree.committed_block:
+            logging.debug('committing a block: with block id = %s', str(block.block_id))
             self.blocktree.committed_block = block
             self.move_to_block(block)
 
-        # print out ids of all committed blocks so far (-> testing purpose)
-        self.committed_blocks_report()
+            # print out ids of all committed blocks so far (-> testing purpose)
+            self.committed_blocks_report()
 
     def reach_genesis_block(self, block):
         """Check if there is a path from `block` to `GENESIS` block. If a block on the path is not contained in

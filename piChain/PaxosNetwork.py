@@ -6,10 +6,11 @@ from twisted.protocols.basic import LineReceiver
 from twisted.internet.endpoints import TCP4ClientEndpoint
 from twisted.internet import reactor
 from twisted.internet.endpoints import connectProtocol
+from twisted.internet.task import deferLater
 
 from piChain.messages import RequestBlockMessage, Transaction, Block, RespondBlockMessage, PaxosMessage
 from piChain.config import peers
-from tests.integration_scenarios import scenario2
+from tests.integration_scenarios import scenario5
 
 import logging
 import json
@@ -154,7 +155,7 @@ class ConnectionManager(Factory):
             logging.info('Connection synchronization finished: Connected to all peers')
 
             # start the paxos algorithm with some test scenarios (test purpose)
-            scenario2(self)
+            deferLater(reactor, 10, scenario5, self)
 
     def connections_report(self):
         logging.info('"""""""""""""""""')
@@ -178,6 +179,10 @@ class ConnectionManager(Factory):
         for k, v in self.peers.items():
             data = obj.serialize()
             v.sendLine(data)
+
+        # if obj is a Transaction then the node also has to send it to itself
+        if msg_type == 'TXN':
+            self.receive_transaction(obj)
 
     @staticmethod
     def respond(obj, sender):
