@@ -512,18 +512,3 @@ class Node(ConnectionManager):
             b = self.blocktree.nodes.get(b.parent_block_id)
             logging.debug('block = %s:', str(b.serialize()))
         logging.debug('***********************')
-
-    def scenario1(self):
-        """start the paxos algorithm by bringing a Transaction in circulation (test purpose -> will be deleted).
-
-        This scenario assumes a healthy state i.e one quick node and the others are slow.
-        """
-        if self.id == 2:
-            logging.debug('scenario1 called')
-
-            # create a Transaction and send it to node with id == 0 (the quick node)
-            txn = Transaction(2, 'command1')
-            connection = self.peers.get(peers.get('0').get('uuid'))
-            if connection is not None:
-                logging.debug('txn send to node 0')
-                connection.sendLine(txn.serialize())

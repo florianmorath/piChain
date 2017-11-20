@@ -9,6 +9,7 @@ from twisted.internet.endpoints import connectProtocol
 
 from piChain.messages import RequestBlockMessage, Transaction, Block, RespondBlockMessage, PaxosMessage
 from piChain.config import peers
+from tests.integration_scenarios import scenario2
 
 import logging
 import json
@@ -153,7 +154,7 @@ class ConnectionManager(Factory):
             logging.info('Connection synchronization finished: Connected to all peers')
 
             # start the paxos algorithm with some test scenarios (test purpose)
-            self.scenario1()
+            scenario2(self)
 
     def connections_report(self):
         logging.info('"""""""""""""""""')
@@ -208,9 +209,6 @@ class ConnectionManager(Factory):
         elif msg_type == 'PAM':
             obj = PaxosMessage.unserialize(msg)
             self.receive_paxos_message(obj, sender)
-
-    def scenario1(self):
-        raise NotImplementedError("To be implemented in subclass")
 
     @staticmethod
     def handle_connection_error(failure, node_id):
