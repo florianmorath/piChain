@@ -123,3 +123,35 @@ class Transaction:
     def unserialize(msg):
         txn = jsonpickle.decode(msg['obj_str'])
         return txn
+
+
+class PingMessage:
+    """"Is sent to estimate RTT."""
+    def __init__(self, time):
+        self.time = time    # timestamp
+
+    def serialize(self):
+        obj_str = jsonpickle.encode(self)
+        s = json.dumps({'msg_type': 'PIN', 'obj_str': obj_str})
+        return s.encode()
+
+    @staticmethod
+    def unserialize(msg):
+        ping = jsonpickle.decode(msg['obj_str'])
+        return ping
+
+
+class PongMessage:
+    """"Is sent to estimate RTT."""
+    def __init__(self, time):
+        self.time = time    # timestamp (the one received in PingMessage)
+
+    def serialize(self):
+        obj_str = jsonpickle.encode(self)
+        s = json.dumps({'msg_type': 'PON', 'obj_str': obj_str})
+        return s.encode()
+
+    @staticmethod
+    def unserialize(msg):
+        pong = jsonpickle.decode(msg['obj_str'])
+        return pong

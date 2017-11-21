@@ -6,12 +6,15 @@ from twisted.protocols.basic import LineReceiver
 from twisted.internet.endpoints import TCP4ClientEndpoint
 from twisted.internet import reactor
 from twisted.internet.endpoints import connectProtocol
+from twisted.internet.task import LoopingCall
 
-from piChain.messages import RequestBlockMessage, Transaction, Block, RespondBlockMessage, PaxosMessage
+from piChain.messages import RequestBlockMessage, Transaction, Block, RespondBlockMessage, PaxosMessage, PingMessage, \
+    PongMessage
 from piChain.config import peers
 
 import logging
 import json
+import time
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -36,6 +39,7 @@ class Connection(LineReceiver):
         self.connection_manager = factory
         self.node_id = self.connection_manager.node_id
         self.peer_node_id = None
+        self.lc_ping = LoopingCall(self.send_ping)
 
     def connectionMade(self):
         logging.info('Connected to %s.', str(self.transport.getPeer()))
@@ -50,6 +54,9 @@ class Connection(LineReceiver):
             if not self.connection_manager.reconnect_loop.running:
                 logging.info('Connection synchronization restart...')
                 self.connection_manager.reconnect_loop.start(10)
+
+        # stop the ping loop
+        self.lc_ping.stop()
 
     def lineReceived(self, line):
         """Callback that is called as soon as a line is available.
@@ -70,6 +77,10 @@ class Connection(LineReceiver):
                 self.connection_manager.peers.update({peer_node_id: self})
                 self.peer_node_id = peer_node_id
 
+                # start ping loop
+                if not self.lc_ping.running:
+                    self.lc_ping.start(20, now=True)
+
             # give peer chance to add connection
             self.send_hello_ack()
 
@@ -81,6 +92,16 @@ class Connection(LineReceiver):
             if peer_node_id not in self.connection_manager.peers:
                 self.connection_manager.peers.update({peer_node_id: self})
                 self.peer_node_id = peer_node_id
+
+                # start ping loop
+                if not self.lc_ping.running:
+                    self.lc_ping.start(20, now=True)
+
+        elif msg_type == 'PIN':
+            obj = PingMessage.unserialize(msg)
+            pong = PongMessage(obj.time)
+            data = pong.serialize()
+            self.sendLine(data)
 
         else:
             self.connection_manager.message_callback(msg_type, msg, self)
@@ -98,6 +119,14 @@ class Connection(LineReceiver):
         """
         s = json.dumps({'msg_type': 'ACK', 'nodeid': self.node_id})
         self.sendLine(s.encode())
+
+    def send_ping(self):
+        """Send ping message to estimate RTT.
+
+        """
+        ping = PingMessage(time.time())
+        data = ping.serialize()
+        self.sendLine(data)
 
     def rawDataReceived(self, data):
         pass
@@ -209,6 +238,9 @@ class ConnectionManager(Factory):
         elif msg_type == 'PAM':
             obj = PaxosMessage.unserialize(msg)
             self.receive_paxos_message(obj, sender)
+        elif msg_type == 'PON':
+            obj = PongMessage.unserialize(msg)
+            self.receive_pong_message(obj, sender.peer_node_id)
 
     @staticmethod
     def handle_connection_error(failure, node_id):
@@ -228,4 +260,7 @@ class ConnectionManager(Factory):
         raise NotImplementedError("To be implemented in subclass")
 
     def receive_paxos_message(self, message, sender):
+        raise NotImplementedError("To be implemented in subclass")
+
+    def receive_pong_message(self, message, peer_node_id):
         raise NotImplementedError("To be implemented in subclass")

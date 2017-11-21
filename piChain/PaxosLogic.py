@@ -2,6 +2,7 @@
 
 import random
 import logging
+import time
 
 from piChain.PaxosNetwork import ConnectionManager
 from piChain.messages import PaxosMessage, Block, RequestBlockMessage, RespondBlockMessage, Transaction
@@ -14,7 +15,6 @@ QUICK = 0
 MEDIUM = 1
 SLOW = 2
 
-EXPECTED_RTT = 1.
 EPSILON = 0.001
 
 GENESIS = Block(-1, None, [])
@@ -109,8 +109,10 @@ class Node(ConnectionManager):
 
         super().__init__(node_index)
 
-        # self.id = node_index  # unique id of node (type = int)
         self.reactor = reactor  # must be parametrized for testing (default = global reactor)
+
+        self.rtts = {}  # dict: peer_node_id -> RTT
+        self.expected_rtt = 1
 
         self.state = SLOW
 
@@ -331,6 +333,22 @@ class Node(ConnectionManager):
             # sync finished
             self.sync_mode = False
 
+    def receive_pong_message(self, message, peer_node_id):
+        """Receive PongMessage and update RRT's accordingly.
+
+        Args:
+            message (PongMessage): Received PongMessage
+            peer_node_id (str): uuid of peer who send the pong message
+
+        """
+        rtt = round(time.time() - message.time, 3)  # in seconds
+        # logging.debug('PongMessage received, rtt = %s', str(rtt))
+
+        # update RTT's
+        self.rtts.update({peer_node_id: rtt})
+        self.expected_rtt = max(self.rtts.values())
+        # logging.debug('overall expected rtt (max) = %s', str(self.expected_rtt))
+
     def move_to_block(self, target):
         """Change to `target` block as new `head_block`. If `target` is found on a forked path, have to broadcast txs
          that wont be on the path from `GENESIS` to new `head_block` anymore.
@@ -460,13 +478,13 @@ class Node(ConnectionManager):
             patience = 0
 
         elif self.state == MEDIUM:
-            patience = (1 + EPSILON) * EXPECTED_RTT
+            patience = (1 + EPSILON) * self.expected_rtt
 
         else:
             if self.slow_timeout is None:
-                patience = random.uniform((2. + EPSILON) * EXPECTED_RTT,
-                                          (2. + EPSILON) * EXPECTED_RTT +
-                                          self.n * EXPECTED_RTT * 0.5)
+                patience = random.uniform((2. + EPSILON) * self.expected_rtt,
+                                          (2. + EPSILON) * self.expected_rtt +
+                                          self.n * self.expected_rtt * 0.5)
                 self.slow_timeout = patience
             else:
                 patience = self.slow_timeout
