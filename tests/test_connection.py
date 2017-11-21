@@ -1,10 +1,12 @@
 from twisted.trial import unittest
 from twisted.test import proto_helpers
 import json
+import time
 
 from unittest.mock import MagicMock
 from piChain.PaxosLogic import Node
-from piChain.messages import Transaction, RequestBlockMessage, Block, RespondBlockMessage, PaxosMessage
+from piChain.messages import Transaction, RequestBlockMessage, Block, RespondBlockMessage, PaxosMessage, PongMessage, \
+    PingMessage
 
 
 class TestConnection(unittest.TestCase):
@@ -15,6 +17,7 @@ class TestConnection(unittest.TestCase):
         """
         self.node = Node(0)
         self.proto = self.node.buildProtocol(('localhost', 0))
+        self.proto.lc_ping = MagicMock()
 
         # mock the transport -> we do not setup a real connection
         self.transport = proto_helpers.StringTransport()
@@ -143,9 +146,35 @@ class TestConnection(unittest.TestCase):
         self.assertEqual(obj.new_block.txs[0], txn1)
         self.assertEqual(obj.last_committed_block.txs[1], txn3)
 
+    def test_PON(self):
+        """Test receipt of a PongMessage.
+
+        """
+        self.node.receive_pong_message = MagicMock()
+
+        pong = PongMessage(time.time())
+        s = pong.serialize()
+        self.proto.lineReceived(s)
+
+        self.assertTrue(self.node.receive_pong_message.called)
+
+    def test_PIN(self):
+        """Test receipt of a PingMessage.
+
+        """
+        timestamp = time.time()
+        ping = PingMessage(timestamp)
+        s = ping.serialize()
+        self.proto.lineReceived(s)
+
+        s = json.loads(self.proto.transport.value())
+        obj = PongMessage.unserialize(s)
+        self.assertEqual(obj.time, timestamp)
+
     def test_broadcast(self):
         # setup another connection
         proto2 = self.node.buildProtocol(('localhost', 2))
+        proto2.lc_ping = MagicMock()
         transport2 = proto_helpers.StringTransport()
         proto2.makeConnection(transport2)
 

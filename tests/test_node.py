@@ -3,9 +3,10 @@ from twisted.internet import task
 from twisted.trial.unittest import TestCase
 
 from piChain.PaxosLogic import Node, GENESIS, Blocktree
-from piChain.messages import PaxosMessage, Block, Transaction, RequestBlockMessage
+from piChain.messages import PaxosMessage, Block, Transaction, RequestBlockMessage, PongMessage
 
 import logging
+import time
 logging.disable(logging.CRITICAL)
 
 
@@ -254,6 +255,13 @@ class TestNode(TestCase):
         clock.advance(50)
 
         assert node.timeout_over.called
+
+    def test_receive_pong_message(self):
+        pong = PongMessage(time.time())
+        node = Node(0)
+        node.receive_pong_message(pong, 'a')
+
+        assert node.rtts.get('a') is not None
 
     def test_timeout_over(self):
         # create a blocktree and add blocks to it
