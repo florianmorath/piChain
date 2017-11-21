@@ -35,7 +35,7 @@ def main():
     deferred.addErrback(log.err)
 
     # start the paxos algorithm with some test scenarios (test purpose -> will be deleted)
-    deferLater(reactor, 10, IntegrationScenarios.scenario10, node)
+    deferLater(reactor, 11, IntegrationScenarios.scenario10, node)
 
     # start reactor
     logging.info('start reactor')

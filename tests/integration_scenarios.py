@@ -1,7 +1,9 @@
 """This module contains test scenarios that are used as integration "tests" of PaxosLogic and PaxosNetwork.
-All scenarios are based on three running nodes with node id 0,1 and 2. Can for example use Multirun plugin of pyCharm
-to start all nodes at exactly the same time, this avoids the problem of initializing the state of the nodes at
-different times.  """
+All scenarios are based on three running nodes with node id 0,1 and 2. Scenarios 1-6 test the healthy state and
+scenarios 7-11 test each possible unhealthy state the system can be in.
+
+note: Can for example use Multirun plugin of pyCharm or write a script to start all nodes at exactly the same time,
+this avoids the problem of initializing the state of the nodes at different times."""
 
 import logging
 
@@ -145,7 +147,7 @@ class IntegrationScenarios:
 
     @staticmethod
     def scenario8(node):
-        """Unhealthy state: q = 1 and m = 2. Quick node will create a block which demotes other medium nodes. Thus
+        """Unhealthy state: q = 1 and m > 1. Quick node will create a block which demotes other medium nodes. Thus
         we are back in a healthy state again.
 
         Args:
@@ -204,9 +206,11 @@ class IntegrationScenarios:
 
     @staticmethod
     def scenario10(node):
-        """Unhealthy state: q > 1 and m = 0. The quick nodes will all create blocks immediately and since a receipt of
-        a block created by a quick node results in demoting to slow, all nodes will demote to slow and we are in the
-        scenario q = 0 / m = 0 described above. Thus we are eventually back in a healthy state.
+        """Unhealthy state: q > 1. This scenario can happen because of a partition. The quick nodes will all
+        create blocks immediately and start a paxos instance (here is where the consistency guarantee of paxos is
+        needed because we have multiple paxos clients competing for their block to be committed).
+        Since a receipt of a block created by a quick node results in demoting to slow, all nodes will demote to slow
+        and we are in the scenario q = 0 / m = 0 described above. Thus we are eventually back in a healthy state.
 
         Args:
             node (Node): Node calling this method
@@ -223,6 +227,40 @@ class IntegrationScenarios:
         elif node.id == 2:
             # quick node
             node.state = 0
+
+            # create a Transaction and broadcast it
+            txn = Transaction(2, 'command1')
+            node.broadcast(txn, 'TXN')
+
+            # create another Transaction a little bit later and broadcast it
+            txn2 = Transaction(2, 'command2')
+            deferLater(reactor, 20, node.broadcast, txn2, 'TXN')
+
+            # create another Transaction a little bit later and broadcast it
+            txn3 = Transaction(2, 'command3')
+            deferLater(reactor, 40, node.broadcast, txn3, 'TXN')
+
+    @staticmethod
+    def scenario11(node):
+        """Unhealthy state: q = 0 and m > 1. All the medium nodes will create a block and promote to quick. Since a
+        receipt of a block where the creator state was quick demotes a node to slow, all nodes demote to slow and we
+        are in scenario q = 0/m = 0 described above.  Thus we are eventually back in a healthy state.
+
+        Args:
+            node (Node): Node calling this method
+
+        """
+        if node.id == 0:
+            # medium node
+            node.state = 1
+
+        elif node.id == 1:
+            # medium node
+            node.state = 1
+
+        elif node.id == 2:
+            # medium node
+            node.state = 1
 
             # create a Transaction and broadcast it
             txn = Transaction(2, 'command1')

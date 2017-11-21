@@ -280,7 +280,7 @@ class Node(ConnectionManager):
         # demote node if necessary
         if self.blocktree.head_block < block or block.creator_state == QUICK:
             if self.state != SLOW:
-                logging.debug('Demoted to slow. State = %s', str(self.state))
+                logging.debug('Demoted to slow. Previous State = %s', str(self.state))
             self.state = SLOW
 
         if not self.blocktree.valid_block(block):
