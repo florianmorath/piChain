@@ -116,6 +116,8 @@ class Node(ConnectionManager):
 
         self.state = SLOW
 
+        self.tx_committed = None   # callable defined by app service
+
         # ensure that exactly one node will be QUICK in beginning
         if self.id == 0:
             self.state = QUICK
@@ -409,6 +411,12 @@ class Node(ConnectionManager):
             # print out ids of all committed blocks so far (-> testing purpose)
             self.committed_blocks_report()
 
+            # call callable of app service
+            commands = []
+            for txn in block.txs:
+                commands.append(txn.content)
+            self.tx_committed(commands)
+
     def reach_genesis_block(self, block):
         """Check if there is a path from `block` to `GENESIS` block. If a block on the path is not contained in
         `self.nodes`, we need to request it from other peers.
@@ -540,3 +548,5 @@ class Node(ConnectionManager):
             b = self.blocktree.nodes.get(b.parent_block_id)
             logging.debug('block = %s:', str(b.serialize()))
         logging.debug('***********************')
+
+
