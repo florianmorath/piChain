@@ -116,7 +116,9 @@ class Node(ConnectionManager):
 
         self.state = SLOW
 
+        # fields set by app service
         self.tx_committed = None   # callable defined by app service
+        self.tx_committed_deferred = None   # deferred defined by app service
 
         # ensure that exactly one node will be QUICK in beginning
         if self.id == 0:
@@ -415,7 +417,9 @@ class Node(ConnectionManager):
             commands = []
             for txn in block.txs:
                 commands.append(txn.content)
-            self.tx_committed(commands)
+            # self.tx_committed(commands)
+            self.tx_committed_deferred.callback(commands)
+
 
     def reach_genesis_block(self, block):
         """Check if there is a path from `block` to `GENESIS` block. If a block on the path is not contained in
