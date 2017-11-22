@@ -118,7 +118,7 @@ class Node(ConnectionManager):
 
         # fields set by app service
         self.tx_committed = None   # callable defined by app service
-        self.tx_committed_deferred = None   # deferred defined by app service
+        # self.tx_committed_deferred = None   # deferred defined by app service
 
         # ensure that exactly one node will be QUICK in beginning
         if self.id == 0:
@@ -413,13 +413,12 @@ class Node(ConnectionManager):
             # print out ids of all committed blocks so far (-> testing purpose)
             self.committed_blocks_report()
 
-            # call callable of app service
+            # call callable of app service, better: fire deferred ?
             commands = []
             for txn in block.txs:
                 commands.append(txn.content)
-            # self.tx_committed(commands)
-            self.tx_committed_deferred.callback(commands)
-
+            self.tx_committed(commands)
+            # self.tx_committed_deferred.callback(commands)
 
     def reach_genesis_block(self, block):
         """Check if there is a path from `block` to `GENESIS` block. If a block on the path is not contained in
@@ -552,5 +551,3 @@ class Node(ConnectionManager):
             b = self.blocktree.nodes.get(b.parent_block_id)
             logging.debug('block = %s:', str(b.serialize()))
         logging.debug('***********************')
-
-

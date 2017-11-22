@@ -3,7 +3,7 @@
 from piChain.PaxosLogic import Node
 from twisted.internet import reactor
 from twisted.internet.task import deferLater
-from twisted.internet import defer
+
 
 import logging
 import argparse
@@ -29,18 +29,13 @@ def main():
     args = parser.parse_args()
     node_index = args.node_index
 
-    deferred = defer.Deferred()
-    deferred.addCallback(tx_committed)
-
     node = Node(int(node_index))
-
-    # node.tx_committed = tx_committed
-    node.tx_committed_deferred = deferred
-
+    node.tx_committed = tx_committed
     node.start_server()
 
     if node_index == '0':
-        deferLater(reactor, 20, node.make_txn, 'sql_command')
+        deferLater(reactor, 20, node.make_txn, 'sql_command1')
+        deferLater(reactor, 40, node.make_txn, 'sql_command2')
 
     reactor.run()
 
