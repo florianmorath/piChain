@@ -83,7 +83,7 @@ class IntegrationScenarios:
             txn2 = Transaction(2, 'command2')
             node.broadcast(txn, 'TXN')
 
-            deferLater(reactor, 0.1, node.broadcast, txn2, 'TXN')
+            deferLater(reactor, 10, node.broadcast, txn2, 'TXN')
 
     @staticmethod
     def scenario5(node):
@@ -178,7 +178,7 @@ class IntegrationScenarios:
         Thus we are eventually back in a healthy state.
 
         note: to test case where more than one slow nodes creates a block (simultaneously) remove random perturbation
-        of patience to slow nodes.
+        of patience of slow nodes.
 
         Args:
             node (Node): Node calling this method

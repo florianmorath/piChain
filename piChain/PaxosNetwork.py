@@ -222,7 +222,8 @@ class ConnectionManager(Factory):
         sender.sendLine(data)
 
     def parse_msg(self, msg_type, msg, sender):
-        logging.info('parse_msg called with msg_type = %s', msg_type)
+        if msg_type != 'PON':
+            logging.info('parse_msg called with msg_type = %s', msg_type)
         if msg_type == 'RQB':
             obj = RequestBlockMessage.unserialize(msg)
             self.receive_request_blocks_message(obj, sender)
