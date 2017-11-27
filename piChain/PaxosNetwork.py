@@ -3,10 +3,11 @@
 
 from twisted.internet.protocol import Factory, connectionDone
 from twisted.protocols.basic import LineReceiver
-from twisted.internet.endpoints import TCP4ClientEndpoint
-from twisted.internet import reactor
+from twisted.internet.endpoints import TCP4ClientEndpoint, TCP4ServerEndpoint
+from twisted.internet import reactor, task
 from twisted.internet.endpoints import connectProtocol
 from twisted.internet.task import LoopingCall
+from twisted.python import log
 
 from piChain.messages import RequestBlockMessage, Transaction, Block, RespondBlockMessage, PaxosMessage, PingMessage, \
     PongMessage
@@ -149,6 +150,7 @@ class ConnectionManager(Factory):
         self.node_id = peers.get(str(index)).get('uuid')
         self.message_callback = self.parse_msg
         self.id = index
+        self.reconnect_loop = None
 
     def buildProtocol(self, addr):
         return Connection(self)
@@ -265,3 +267,33 @@ class ConnectionManager(Factory):
 
     def receive_pong_message(self, message, peer_node_id):
         raise NotImplementedError("To be implemented in subclass")
+
+    # methods used by the app
+
+    def start_server(self):
+        """First starts a server listening on a port given in confg file. Then connect to other peers.
+
+        """
+        endpoint = TCP4ServerEndpoint(reactor, peers.get(str(self.id)).get('port'))
+        endpoint.listen(self)
+
+        # "client part" -> connect to all servers -> add handshake callback
+        self.reconnect_loop = task.LoopingCall(self.connect_to_nodes, str(self.id))
+        logging.info('Connection synchronization start...')
+        deferred = self.reconnect_loop.start(5, True)
+        deferred.addErrback(log.err)
+
+    def make_txn(self, command):
+        """This method is called by the app with the command to be committed.
+
+        Args:
+            command (str): command to be commited
+
+        """
+        # note: a deferred can only be fired once
+        # deferred = defer.Deferred()
+        # deferred.addCallback(self.tx_committed)
+        # self.tx_committed_deferred = deferred
+
+        txn = Transaction(self.id, command)
+        self.broadcast(txn, 'TXN')
