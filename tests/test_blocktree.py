@@ -1,4 +1,5 @@
 from unittest import TestCase
+from unittest.mock import MagicMock
 from piChain.PaxosLogic import Blocktree, GENESIS
 from piChain.messages import Block
 
@@ -10,7 +11,8 @@ class TestBlocktree(TestCase):
 
     def test_ancestor(self):
         # create a blocktree and add blocks to it
-        bt = Blocktree()
+        bt = Blocktree(0)
+        bt.db = MagicMock()
         b1 = Block(1, GENESIS.block_id, ['a'])
         b2 = Block(2, GENESIS.block_id, ['a'])
         b3 = Block(3, b2.block_id, ['a'])
@@ -31,7 +33,8 @@ class TestBlocktree(TestCase):
 
     def test_common_ancestor(self):
         # create a blocktree and add blocks to it
-        bt = Blocktree()
+        bt = Blocktree(0)
+        bt.db = MagicMock()
         b1 = Block(1, GENESIS.block_id, ['a'])
         b2 = Block(2, GENESIS.block_id, ['a'])
         b3 = Block(3, b2.block_id, ['a'])
@@ -50,7 +53,8 @@ class TestBlocktree(TestCase):
 
     def test_valid_block(self):
         # create a blocktree and add blocks to it
-        bt = Blocktree()
+        bt = Blocktree(0)
+        bt.db = MagicMock()
         b1 = Block(1, GENESIS.block_id, ['a'])
         b2 = Block(2, GENESIS.block_id, ['a'])
         b3 = Block(3, b2.block_id, ['a'])

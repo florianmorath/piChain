@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 from twisted.internet import task
 from twisted.trial.unittest import TestCase
 
-from piChain.PaxosLogic import Node, GENESIS, Blocktree
+from piChain.PaxosLogic import Node, GENESIS
 from piChain.messages import PaxosMessage, Block, Transaction, RequestBlockMessage, PongMessage
 
 import logging
@@ -11,6 +11,10 @@ logging.disable(logging.CRITICAL)
 
 
 class TestNode(TestCase):
+
+    def setUp(self):
+        self.node = Node(0)
+        self.node.blocktree.db = MagicMock()
 
     def test_receive_paxos_message_try(self):
         # try message
@@ -21,16 +25,15 @@ class TestNode(TestCase):
         b.depth = 1
         try_msg.new_block = b
 
-        node = Node(0)
-        node.respond = MagicMock()
+        self.node.respond = MagicMock()
 
-        node.receive_paxos_message(try_msg, None)
-        assert node.respond.called
-        assert node.s_max_block == b
+        self.node.receive_paxos_message(try_msg, None)
+        assert self.node.respond.called
+        assert self.node.s_max_block == b
 
-        # obj = node.respond.call_args[0][0]
+        # obj = self.node.respond.call_args[0][0]
         # print('try_ok message = ', pprint(vars(obj)))
-        # print('node vars = ', pprint(vars(node)))
+        # print('self.node vars = ', pprint(vars(self.node)))
 
     def test_receive_paxos_message_try_ok_1(self):
         # try_ok message with no prop/supp block stored locally and message does not contain a propose block
@@ -39,15 +42,14 @@ class TestNode(TestCase):
         b = Block(1, GENESIS.block_id, ['a'])
         b.depth = 1
 
-        node = Node(0)
-        node.c_request_seq = 1
-        node.c_new_block = b
-        node.c_votes = 5
-        node.broadcast = MagicMock()
-        node.receive_paxos_message(try_ok, None)
+        self.node.c_request_seq = 1
+        self.node.c_new_block = b
+        self.node.c_votes = 5
+        self.node.broadcast = MagicMock()
+        self.node.receive_paxos_message(try_ok, None)
 
-        assert node.broadcast.called
-        assert node.c_com_block == node.c_new_block
+        assert self.node.broadcast.called
+        assert self.node.c_com_block == self.node.c_new_block
 
     def test_receive_paxos_message_try_ok_2(self):
         # try_ok message with prop/supp block stored locally and message does not contain a propose block
@@ -56,18 +58,17 @@ class TestNode(TestCase):
         b = Block(1, GENESIS.block_id, ['a'])
         b.depth = 1
 
-        node = Node(0)
-        node.c_request_seq = 1
-        node.c_new_block = b
-        node.c_votes = 5
-        node.c_supp_block = GENESIS
-        node.c_prop_block = GENESIS
+        self.node.c_request_seq = 1
+        self.node.c_new_block = b
+        self.node.c_votes = 5
+        self.node.c_supp_block = GENESIS
+        self.node.c_prop_block = GENESIS
 
-        node.broadcast = MagicMock()
-        node.receive_paxos_message(try_ok, None)
+        self.node.broadcast = MagicMock()
+        self.node.receive_paxos_message(try_ok, None)
 
-        assert node.broadcast.called
-        assert node.c_supp_block == GENESIS
+        assert self.node.broadcast.called
+        assert self.node.c_supp_block == GENESIS
 
     def test_receive_paxos_message_try_ok_3(self):
         # try_ok message with no prop/supp block stored locally and message does contain a propose block
@@ -79,18 +80,17 @@ class TestNode(TestCase):
         try_ok.supp_block = b
         try_ok.prop_block = b
 
-        node = Node(0)
-        node.c_request_seq = 1
-        node.c_new_block = b
-        node.c_votes = 5
+        self.node.c_request_seq = 1
+        self.node.c_new_block = b
+        self.node.c_votes = 5
 
-        node.broadcast = MagicMock()
-        node.receive_paxos_message(try_ok, None)
+        self.node.broadcast = MagicMock()
+        self.node.receive_paxos_message(try_ok, None)
 
-        assert node.broadcast.called
-        assert node.c_prop_block == b
+        assert self.node.broadcast.called
+        assert self.node.c_prop_block == b
 
-        obj = node.broadcast.call_args[0][0]
+        obj = self.node.broadcast.call_args[0][0]
         assert obj.com_block == b
 
     def test_receive_paxos_message_propose(self):
@@ -102,13 +102,12 @@ class TestNode(TestCase):
         propose.new_block = GENESIS
         propose.com_block = GENESIS
 
-        node = Node(0)
-        node.respond = MagicMock()
-        node.receive_paxos_message(propose, None)
+        self.node.respond = MagicMock()
+        self.node.receive_paxos_message(propose, None)
 
-        assert node.respond.called
-        assert node.s_prop_block == propose.com_block
-        assert node.s_supp_block == propose.new_block
+        assert self.node.respond.called
+        assert self.node.s_prop_block == propose.com_block
+        assert self.node.s_supp_block == propose.new_block
 
     def test_receive_paxos_message_propose_ack(self):
         propose_ack = PaxosMessage('PROPOSE_ACK', 1)
@@ -118,95 +117,84 @@ class TestNode(TestCase):
 
         propose_ack.com_block = b
 
-        node = Node(0)
-        node.c_request_seq = 1
-        node.c_votes = 5
+        self.node.c_request_seq = 1
+        self.node.c_votes = 5
 
-        node.broadcast = MagicMock()
-        node.receive_paxos_message(propose_ack, None)
+        self.node.broadcast = MagicMock()
+        self.node.commit = MagicMock()
+        self.node.receive_paxos_message(propose_ack, None)
 
-        assert node.broadcast.called
+        assert self.node.broadcast.called
 
-        obj = node.broadcast.call_args[0][0]
+        obj = self.node.broadcast.call_args[0][0]
         assert obj.com_block == propose_ack.com_block
 
     def test_create_block(self):
         # create a blocktree and add blocks to it
-        bt = Blocktree()
         b1 = Block(1, GENESIS.block_id, [Transaction(1, 'a')])
         b2 = Block(2, GENESIS.block_id, [Transaction(1, 'a')])
         b3 = Block(3, b2.block_id, [Transaction(1, 'a')])
         b4 = Block(4, b3.block_id, [Transaction(1, 'a')])
         b5 = Block(5, b2.block_id, [Transaction(1, 'a')])
 
-        bt.add_block(b1)
-        bt.add_block(b2)
-        bt.add_block(b3)
-        bt.add_block(b4)
-        bt.add_block(b5)
+        self.node.blocktree.add_block(b1)
+        self.node.blocktree.add_block(b2)
+        self.node.blocktree.add_block(b3)
+        self.node.blocktree.add_block(b4)
+        self.node.blocktree.add_block(b5)
 
-        bt.head_block = b4
+        self.node.blocktree.head_block = b4
 
-        node = Node(0)
-        node.new_txs = [Transaction(1, 'a')]
-        node.blocktree = bt
+        self.node.new_txs = [Transaction(1, 'a')]
 
-        c = node.create_block()
-        assert len(node.new_txs) == 0
-        assert node.blocktree.nodes.get(c.block_id) == c
+        c = self.node.create_block()
+        assert len(self.node.new_txs) == 0
+        assert self.node.blocktree.nodes.get(c.block_id) == c
 
     def test_reach_genesis_block(self):
-        bt = Blocktree()
+
         b1 = Block(1, GENESIS.block_id, [Transaction(1, 'a')])
         b2 = Block(2, GENESIS.block_id, [Transaction(1, 'a')])
         b3 = Block(3, b2.block_id, [Transaction(1, 'a')])
         b4 = Block(4, b3.block_id, [Transaction(1, 'a')])
         b5 = Block(5, b2.block_id, [Transaction(1, 'a')])
 
-        bt.add_block(b1)
-        bt.add_block(b2)
-        bt.add_block(b3)
-        bt.add_block(b4)
-        bt.add_block(b5)
+        self.node.blocktree.add_block(b1)
+        self.node.blocktree.add_block(b2)
+        self.node.blocktree.add_block(b3)
+        self.node.blocktree.add_block(b4)
+        self.node.blocktree.add_block(b5)
 
-        node = Node(0)
-        node.blocktree = bt
-
-        assert node.reach_genesis_block(b5)
+        assert self.node.reach_genesis_block(b5)
 
         b = Block(1, 1234, [Transaction(1, 'a')])
 
-        node.broadcast = MagicMock()
-        node.reach_genesis_block(b)
+        self.node.broadcast = MagicMock()
+        self.node.reach_genesis_block(b)
 
-        assert node.broadcast.called
+        assert self.node.broadcast.called
 
     def test_receive_request_blocks_message(self):
-        bt = Blocktree()
         b1 = Block(1, GENESIS.block_id, [Transaction(1, 'a')])
         b2 = Block(2, GENESIS.block_id, [Transaction(1, 'a')])
         b3 = Block(3, b2.block_id, [Transaction(1, 'a')])
         b4 = Block(4, b3.block_id, [Transaction(1, 'a')])
         b5 = Block(5, b2.block_id, [Transaction(1, 'a')])
 
-        bt.add_block(b1)
-        bt.add_block(b2)
-        bt.add_block(b3)
-        bt.add_block(b4)
-        bt.add_block(b5)
-
-        node = Node(0)
-        node.blocktree = bt
+        self.node.blocktree.add_block(b1)
+        self.node.blocktree.add_block(b2)
+        self.node.blocktree.add_block(b3)
+        self.node.blocktree.add_block(b4)
+        self.node.blocktree.add_block(b5)
 
         req = RequestBlockMessage(b4.block_id)
 
-        node.respond = MagicMock()
-        node.receive_request_blocks_message(req, None)
+        self.node.respond = MagicMock()
+        self.node.receive_request_blocks_message(req, None)
 
-        assert node.respond.called
+        assert self.node.respond.called
 
     def test_move_to_block(self):
-        bt = Blocktree()
         b1 = Block(1, GENESIS.block_id, [Transaction(1, 'a')])
         b2 = Block(2, GENESIS.block_id, [Transaction(2, 'a')])
         b3 = Block(3, b2.block_id, [Transaction(3, 'a')])
@@ -214,80 +202,71 @@ class TestNode(TestCase):
         b5 = Block(5, b2.block_id, [Transaction(5, 'a')])
         b6 = Block(6, b4.block_id, [Transaction(6, 'a')])
 
-        bt.add_block(b1)
-        bt.add_block(b2)
-        bt.add_block(b3)
-        bt.add_block(b4)
-        bt.add_block(b5)
-        bt.add_block(b6)
+        self.node.blocktree.add_block(b1)
+        self.node.blocktree.add_block(b2)
+        self.node.blocktree.add_block(b3)
+        self.node.blocktree.add_block(b4)
+        self.node.blocktree.add_block(b5)
+        self.node.blocktree.add_block(b6)
 
-        bt.head_block = b4
+        self.node.blocktree.head_block = b4
 
-        node = Node(0)
-        node.blocktree = bt
-
-        old = node.blocktree.head_block
+        old = self.node.blocktree.head_block
         # should both have no effect
-        node.move_to_block(b3)
-        node.move_to_block(b4)
-        assert node.blocktree.head_block == old
+        self.node.move_to_block(b3)
+        self.node.move_to_block(b4)
+        assert self.node.blocktree.head_block == old
 
-        node.move_to_block(b6)
-        assert node.blocktree.head_block == b6
+        self.node.move_to_block(b6)
+        assert self.node.blocktree.head_block == b6
 
-        node.broadcast = MagicMock()
-        node.move_to_block(b1)
+        self.node.broadcast = MagicMock()
+        self.node.move_to_block(b1)
 
-        assert node.broadcast.called
-        assert node.blocktree.head_block == b1
+        assert self.node.broadcast.called
+        assert self.node.blocktree.head_block == b1
 
     def test_receive_transaction(self):
         txn = Transaction(0, 'a')
 
-        node = Node(0)
-
         # test timeout
         clock = task.Clock()
         # must use a different reactor for testing
-        node.reactor = clock
-        node.timeout_over = MagicMock()
-        node.receive_transaction(txn)
+        self.node.reactor = clock
+        self.node.timeout_over = MagicMock()
+        self.node.receive_transaction(txn)
         clock.advance(50)
 
-        assert node.timeout_over.called
+        assert self.node.timeout_over.called
 
     def test_receive_pong_message(self):
         pong = PongMessage(time.time())
-        node = Node(0)
-        node.receive_pong_message(pong, 'a')
+        self.node.receive_pong_message(pong, 'a')
 
-        assert node.rtts.get('a') is not None
+        assert self.node.rtts.get('a') is not None
 
     def test_timeout_over(self):
         # create a blocktree and add blocks to it
-        bt = Blocktree()
         b1 = Block(1, GENESIS.block_id, [Transaction(1, 'a')])
         b2 = Block(2, GENESIS.block_id, [Transaction(1, 'a')])
         b3 = Block(3, b2.block_id, [Transaction(1, 'a')])
         b4 = Block(4, b3.block_id, [Transaction(1, 'a')])
         b5 = Block(5, b2.block_id, [Transaction(1, 'a')])
 
-        bt.add_block(b1)
-        bt.add_block(b2)
-        bt.add_block(b3)
-        bt.add_block(b4)
-        bt.add_block(b5)
+        self.node.blocktree.add_block(b1)
+        self.node.blocktree.add_block(b2)
+        self.node.blocktree.add_block(b3)
+        self.node.blocktree.add_block(b4)
+        self.node.blocktree.add_block(b5)
 
-        bt.head_block = b4
+        self.node.blocktree.head_block = b4
 
-        node = Node(0)
         txn = Transaction(1, 'a')
-        node.new_txs = [txn]
-        node.blocktree = bt
-        node.broadcast = MagicMock()
-        node.state = 0
-        node.timeout_over(txn)
+        self.node.new_txs = [txn]
+        self.node.broadcast = MagicMock()
+        self.node.state = 0
+        self.node.timeout_over(txn)
 
-        assert node.broadcast.called
-        obj = node.broadcast.call_args[0][0]
-        assert obj.last_committed_block == node.blocktree.committed_block
+        assert self.node.broadcast.called
+        obj = self.node.broadcast.call_args[0][0]
+        assert obj.last_committed_block == self.node.blocktree.committed_block

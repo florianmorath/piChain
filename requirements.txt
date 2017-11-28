@@ -1,3 +1,4 @@
+plyvel
 jsonpickle
 twisted
 pytest

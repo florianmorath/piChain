@@ -16,6 +16,7 @@ class TestConnection(unittest.TestCase):
 
         """
         self.node = Node(0)
+        self.node.blocktree.db = MagicMock()
         self.proto = self.node.buildProtocol(('localhost', 0))
         self.proto.lc_ping = MagicMock()
 

@@ -3,6 +3,7 @@
 import random
 import logging
 import time
+import json
 
 from piChain.PaxosNetwork import ConnectionManager
 from piChain.messages import PaxosMessage, Block, RequestBlockMessage, RespondBlockMessage, Transaction
@@ -10,6 +11,7 @@ from piChain.config import peers
 from twisted.internet.task import deferLater
 from twisted.internet import reactor
 
+import plyvel
 
 QUICK = 0
 MEDIUM = 1
@@ -23,11 +25,31 @@ GENESIS.depth = 0
 
 class Blocktree:
     """Tree of blocks."""
-    def __init__(self):
+    def __init__(self, node_index):
         self.head_block = GENESIS  # deepest block in the block tree (head of the blockchain)
         self.committed_block = GENESIS  # last committed block -> will indirectly define all committed blocks so far
         self.nodes = {}  # dictionary from block_id to instance of type Block
         self.nodes.update({GENESIS.block_id: GENESIS})
+
+        # create a db instance (s.t blocks can be recovered after a crash)
+        path = '/tmp/pichain' + str(node_index)
+        self.db = plyvel.DB(path, create_if_missing=True)
+
+        # load blocks (after crash)
+        for key, value in self.db:
+            if key == b'committed_block':
+                msg = json.loads(value)
+                block = Block.unserialize(msg)
+                self.committed_block = block
+            elif key == b'head_block':
+                msg = json.loads(value)
+                block = Block.unserialize(msg)
+                self.head_block = block
+            else:   # block_id -> block
+                block_id = int(key.decode())
+                msg = json.loads(value)
+                block = Block.unserialize(msg)
+                self.nodes.update({block_id: block})
 
     def ancestor(self, block_a, block_b):
         """Check if `block_a` is ancestor of `block_b`. Both blocks must be included in `self.nodes`
@@ -102,6 +124,12 @@ class Blocktree:
             block.depth = parent.depth + len(block.txs)
         self.nodes.update({block.block_id: block})
 
+        # write block to disk
+        block_id_str = str(block.block_id)
+        block_id_bytes = block_id_str.encode()
+        block_bytes = block.serialize()
+        self.db.put(block_id_bytes, block_bytes)
+
 
 class Node(ConnectionManager):
 
@@ -126,7 +154,7 @@ class Node(ConnectionManager):
 
         self.n = len(peers)  # total number of nodes
 
-        self.blocktree = Blocktree()
+        self.blocktree = Blocktree(node_index)
 
         self.sync_mode = False  # True if node is looking for a missing block
 
@@ -333,7 +361,7 @@ class Node(ConnectionManager):
         blocks = resp.blocks
         if self.sync_mode:
             for b in blocks:
-                self.blocktree.nodes.update({b.block_id: b})
+                self.blocktree.add_block(b)
             # sync finished
             self.sync_mode = False
 
@@ -388,6 +416,10 @@ class Node(ConnectionManager):
             # target is now the new head_block
             self.blocktree.head_block = target
 
+            # write changes to disk (add headblock)
+            block_bytes = target.serialize()
+            self.blocktree.db.put(b'head_block', block_bytes)
+
             # broadcast txs in to_broadcast
             for tx in to_broadcast:
                 self.broadcast(tx, 'TXN')
@@ -410,6 +442,10 @@ class Node(ConnectionManager):
             self.blocktree.committed_block = block
             self.move_to_block(block)
 
+            # write changes to disk (add committed block)
+            block_bytes = block.serialize()
+            self.db.put(b'committed_block', block_bytes)
+
             # print out ids of all committed blocks so far (-> testing purpose)
             self.committed_blocks_report()
 
@@ -431,7 +467,7 @@ class Node(ConnectionManager):
         Returns:
             bool: True if `GENESIS` block was reached.
         """
-        self.blocktree.nodes.update({block.block_id: block})
+        self.blocktree.add_block(block)
 
         b = block
         while b != GENESIS:
@@ -465,7 +501,7 @@ class Node(ConnectionManager):
         self.new_txs = []
 
         # add block to blocktree
-        self.blocktree.nodes.update({b.block_id: b})
+        self.blocktree.add_block(b)
 
         # promote node
         if self.state != QUICK:
