@@ -49,8 +49,7 @@ class Blocktree:
                 block = Block.unserialize(msg)
                 self.head_block = block
             elif key == b'counter':
-                logging.debug('counter = %s', value.decode())
-                self.counter = itertools.count(start=int(value.decode()))
+                self.counter = int(value.decode())
             else:   # block_id -> block
                 block_id = int(key.decode())
                 msg = json.loads(value)
@@ -494,15 +493,11 @@ class Node(ConnectionManager):
         # store depth of current head_block (will be parent of new block)
         d = self.blocktree.head_block.depth
 
-        logging.debug('0')
         # create block
         self.blocktree.counter += 1
-        logging.debug('1')
-        logging.debug('counter after create block %s', str(self.blocktree.counter))
         b = Block(self.id, self.blocktree.head_block.block_id, self.new_txs, self.blocktree.counter)
         self.blocktree.db.put(b'counter', str(self.blocktree.counter).encode())
 
-        logging.debug('2')
         # compute its depth (will be fixed -> depth field is only set once)
         b.depth = d + len(b.txs)
 
@@ -512,7 +507,6 @@ class Node(ConnectionManager):
         # add block to blocktree
         self.blocktree.add_block(b)
 
-        logging.debug('3')
         # promote node
         if self.state != QUICK:
             self.state = max(QUICK, self.state - 1)
