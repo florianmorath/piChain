@@ -13,11 +13,11 @@ class TestBlocktree(TestCase):
         # create a blocktree and add blocks to it
         bt = Blocktree(0)
         bt.db = MagicMock()
-        b1 = Block(1, GENESIS.block_id, ['a'])
-        b2 = Block(2, GENESIS.block_id, ['a'])
-        b3 = Block(3, b2.block_id, ['a'])
-        b4 = Block(4, b3.block_id, ['a'])
-        b5 = Block(5, b2.block_id, ['a'])
+        b1 = Block(1, GENESIS.block_id, ['a'], 1)
+        b2 = Block(2, GENESIS.block_id, ['a'], 2)
+        b3 = Block(3, b2.block_id, ['a'], 3)
+        b4 = Block(4, b3.block_id, ['a'], 4)
+        b5 = Block(5, b2.block_id, ['a'], 5)
 
         bt.add_block(b1)
         bt.add_block(b2)
@@ -35,11 +35,11 @@ class TestBlocktree(TestCase):
         # create a blocktree and add blocks to it
         bt = Blocktree(0)
         bt.db = MagicMock()
-        b1 = Block(1, GENESIS.block_id, ['a'])
-        b2 = Block(2, GENESIS.block_id, ['a'])
-        b3 = Block(3, b2.block_id, ['a'])
-        b4 = Block(4, b3.block_id, ['a'])
-        b5 = Block(5, b2.block_id, ['a'])
+        b1 = Block(1, GENESIS.block_id, ['a'], 1)
+        b2 = Block(2, GENESIS.block_id, ['a'], 2)
+        b3 = Block(3, b2.block_id, ['a'], 3)
+        b4 = Block(4, b3.block_id, ['a'], 4)
+        b5 = Block(5, b2.block_id, ['a'], 5)
 
         bt.add_block(b1)
         bt.add_block(b2)
@@ -55,11 +55,11 @@ class TestBlocktree(TestCase):
         # create a blocktree and add blocks to it
         bt = Blocktree(0)
         bt.db = MagicMock()
-        b1 = Block(1, GENESIS.block_id, ['a'])
-        b2 = Block(2, GENESIS.block_id, ['a'])
-        b3 = Block(3, b2.block_id, ['a'])
-        b4 = Block(4, b3.block_id, ['a'])
-        b5 = Block(5, b2.block_id, ['a'])
+        b1 = Block(1, GENESIS.block_id, ['a'], 1)
+        b2 = Block(2, GENESIS.block_id, ['a'], 2)
+        b3 = Block(3, b2.block_id, ['a'], 3)
+        b4 = Block(4, b3.block_id, ['a'], 4)
+        b5 = Block(5, b2.block_id, ['a'], 5)
 
         bt.add_block(b1)
         bt.add_block(b2)
@@ -81,16 +81,15 @@ class TestBlocktree(TestCase):
         assert not bt.valid_block(b2)
 
     def test_block_set(self):
-
         # test that __hash__ and __eq__ were implemented correctly
-        b1 = Block(0, GENESIS.block_id, ['a'])
+        b1 = Block(0, GENESIS.block_id, ['a'], 1)
         block_set = set()
         block_set.add(b1)
         block_set.add(b1)
 
         assert len(block_set) == 1
 
-        b2 = Block(0, GENESIS.block_id, ['a'])
+        b2 = Block(0, GENESIS.block_id, ['a'], 2)
         block_set.add(b2)
 
         assert len(block_set) == 2

@@ -4,6 +4,9 @@ import random
 import logging
 import time
 import json
+import plyvel
+import itertools
+
 
 from piChain.PaxosNetwork import ConnectionManager
 from piChain.messages import PaxosMessage, Block, RequestBlockMessage, RespondBlockMessage, Transaction
@@ -11,7 +14,6 @@ from piChain.config import peers
 from twisted.internet.task import deferLater
 from twisted.internet import reactor
 
-import plyvel
 
 QUICK = 0
 MEDIUM = 1
@@ -19,7 +21,7 @@ SLOW = 2
 
 EPSILON = 0.001
 
-GENESIS = Block(-1, None, [])
+GENESIS = Block(-1, None, [], 0)
 GENESIS.depth = 0
 
 
@@ -30,12 +32,13 @@ class Blocktree:
         self.committed_block = GENESIS  # last committed block -> will indirectly define all committed blocks so far
         self.nodes = {}  # dictionary from block_id to instance of type Block
         self.nodes.update({GENESIS.block_id: GENESIS})
+        self.counter = 0    # gobal counter used for txn_id and block_id
 
         # create a db instance (s.t blocks can be recovered after a crash)
         path = '/tmp/pichain' + str(node_index)
         self.db = plyvel.DB(path, create_if_missing=True)
 
-        # load blocks (after crash)
+        # load blocks and counter (after crash)
         for key, value in self.db:
             if key == b'committed_block':
                 msg = json.loads(value)
@@ -45,6 +48,9 @@ class Blocktree:
                 msg = json.loads(value)
                 block = Block.unserialize(msg)
                 self.head_block = block
+            elif key == b'counter':
+                logging.debug('counter = %s', value.decode())
+                self.counter = itertools.count(start=int(value.decode()))
             else:   # block_id -> block
                 block_id = int(key.decode())
                 msg = json.loads(value)
@@ -122,13 +128,15 @@ class Blocktree:
         if block.depth is None and self.nodes.get(block.parent_block_id) is not None:
             parent = self.nodes.get(block.parent_block_id)
             block.depth = parent.depth + len(block.txs)
-        self.nodes.update({block.block_id: block})
 
-        # write block to disk
-        block_id_str = str(block.block_id)
-        block_id_bytes = block_id_str.encode()
-        block_bytes = block.serialize()
-        self.db.put(block_id_bytes, block_bytes)
+        if self.nodes.get(block.block_id) is None:
+            self.nodes.update({block.block_id: block})
+
+            # write block to disk
+            block_id_str = str(block.block_id)
+            block_id_bytes = block_id_str.encode()
+            block_bytes = block.serialize()
+            self.db.put(block_id_bytes, block_bytes)
 
 
 class Node(ConnectionManager):
@@ -396,13 +404,11 @@ class Node(ConnectionManager):
         if (not self.blocktree.ancestor(target, self.blocktree.head_block)) and target != self.blocktree.head_block:
             common_ancestor = self.blocktree.common_ancestor(self.blocktree.head_block, target)
             to_broadcast = set()
-
             # go from head_block to common ancestor: add txs to to_broadcast
             b = self.blocktree.head_block
             while b != common_ancestor:
                 to_broadcast |= set(b.txs)
                 b = self.blocktree.nodes.get(b.parent_block_id)
-
             # go from target to common ancestor: remove txs from to_broadcast and new_txs, add to known_txs
             b = target
             while b != common_ancestor:
@@ -419,7 +425,6 @@ class Node(ConnectionManager):
             # write changes to disk (add headblock)
             block_bytes = target.serialize()
             self.blocktree.db.put(b'head_block', block_bytes)
-
             # broadcast txs in to_broadcast
             for tx in to_broadcast:
                 self.broadcast(tx, 'TXN')
@@ -444,7 +449,7 @@ class Node(ConnectionManager):
 
             # write changes to disk (add committed block)
             block_bytes = block.serialize()
-            self.db.put(b'committed_block', block_bytes)
+            self.blocktree.db.put(b'committed_block', block_bytes)
 
             # print out ids of all committed blocks so far (-> testing purpose)
             self.committed_blocks_report()
@@ -454,7 +459,6 @@ class Node(ConnectionManager):
             for txn in block.txs:
                 commands.append(txn.content)
             self.tx_committed(commands)
-            # self.tx_committed_deferred.callback(commands)
 
     def reach_genesis_block(self, block):
         """Check if there is a path from `block` to `GENESIS` block. If a block on the path is not contained in
@@ -468,7 +472,6 @@ class Node(ConnectionManager):
             bool: True if `GENESIS` block was reached.
         """
         self.blocktree.add_block(block)
-
         b = block
         while b != GENESIS:
             if self.blocktree.nodes.get(b.parent_block_id) is not None:
@@ -491,9 +494,15 @@ class Node(ConnectionManager):
         # store depth of current head_block (will be parent of new block)
         d = self.blocktree.head_block.depth
 
+        logging.debug('0')
         # create block
-        b = Block(self.id, self.blocktree.head_block.block_id, self.new_txs)
+        self.blocktree.counter += 1
+        logging.debug('1')
+        logging.debug('counter after create block %s', str(self.blocktree.counter))
+        b = Block(self.id, self.blocktree.head_block.block_id, self.new_txs, self.blocktree.counter)
+        self.blocktree.db.put(b'counter', str(self.blocktree.counter).encode())
 
+        logging.debug('2')
         # compute its depth (will be fixed -> depth field is only set once)
         b.depth = d + len(b.txs)
 
@@ -503,6 +512,7 @@ class Node(ConnectionManager):
         # add block to blocktree
         self.blocktree.add_block(b)
 
+        logging.debug('3')
         # promote node
         if self.state != QUICK:
             self.state = max(QUICK, self.state - 1)
@@ -549,7 +559,7 @@ class Node(ConnectionManager):
         if txn in self.new_txs:
             # create a new block
             b = self.create_block()
-
+            logging.debug('after create block')
             self.move_to_block(b)
             self.broadcast(b, 'BLK')
 
@@ -587,3 +597,18 @@ class Node(ConnectionManager):
             b = self.blocktree.nodes.get(b.parent_block_id)
             logging.debug('block = %s:', str(b.serialize()))
         logging.debug('***********************')
+
+    # methods used by the app
+
+    def make_txn(self, command):
+        """This method is called by the app with the command to be committed.
+
+        Args:
+            command (str): command to be commited
+
+        """
+
+        self.blocktree.counter += 1
+        txn = Transaction(self.id, command, self.blocktree.counter)
+        self.blocktree.db.put(b'counter', str(self.blocktree.counter).encode())
+        self.broadcast(txn, 'TXN')

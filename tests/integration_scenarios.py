@@ -29,7 +29,7 @@ class IntegrationScenarios:
         """
         if node.id == 2:
             # create a Transaction and send it to node with id == 0 (the quick node)
-            txn = Transaction(2, 'command1')
+            txn = Transaction(2, 'command1', 1)
             connection = node.peers.get(peers.get('0').get('uuid'))
             if connection is not None:
                 logging.debug('txn send to node 0')
@@ -47,7 +47,7 @@ class IntegrationScenarios:
         """
         if node.id == 2:
             # create a Transaction and broadcast it
-            txn = Transaction(2, 'command1')
+            txn = Transaction(2, 'command1', 1)
             node.broadcast(txn, 'TXN')
 
     @staticmethod
@@ -62,8 +62,8 @@ class IntegrationScenarios:
         """
         if node.id == 2:
             # create Transactions and broadcast them
-            txn = Transaction(2, 'command1')
-            txn2 = Transaction(2, 'command2')
+            txn = Transaction(2, 'command1', 1)
+            txn2 = Transaction(2, 'command2', 3)
             node.broadcast(txn, 'TXN')
             node.broadcast(txn2, 'TXN')
 
@@ -79,11 +79,11 @@ class IntegrationScenarios:
         """
         if node.id == 2:
             # create Transactions and broadcast them
-            txn = Transaction(2, 'command1')
-            txn2 = Transaction(2, 'command2')
+            txn = Transaction(2, 'command1', 1)
+            txn2 = Transaction(2, 'command2', 2)
             node.broadcast(txn, 'TXN')
 
-            deferLater(reactor, 10, node.broadcast, txn2, 'TXN')
+            deferLater(reactor, 20, node.broadcast, txn2, 'TXN')
 
     @staticmethod
     def scenario5(node):
@@ -97,12 +97,12 @@ class IntegrationScenarios:
         """
         if node.id == 2:
             # create a Transaction and broadcast it
-            txn = Transaction(2, 'command1')
+            txn = Transaction(2, 'command1', 1)
             node.broadcast(txn, 'TXN')
 
         elif node.id == 1:
             # create a Transaction and broadcast it
-            txn = Transaction(1, 'command2')
+            txn = Transaction(1, 'command2', 2)
             node.broadcast(txn, 'TXN')
 
     @staticmethod
@@ -117,7 +117,7 @@ class IntegrationScenarios:
         """
         if node.id == 0:
             # create a Transaction and broadcast it
-            txn = Transaction(0, 'command1')
+            txn = Transaction(0, 'command1', 1)
             node.broadcast(txn, 'TXN')
 
     @staticmethod
@@ -142,7 +142,7 @@ class IntegrationScenarios:
             node.state = 2
 
             # create a Transaction and broadcast it
-            txn = Transaction(2, 'command1')
+            txn = Transaction(2, 'command1', 1)
             node.broadcast(txn, 'TXN')
 
     @staticmethod
@@ -167,7 +167,7 @@ class IntegrationScenarios:
             node.state = 1
 
             # create a Transaction and broadcast it
-            txn = Transaction(2, 'command1')
+            txn = Transaction(2, 'command1', 1)
             node.broadcast(txn, 'TXN')
 
     @staticmethod
@@ -197,11 +197,11 @@ class IntegrationScenarios:
             node.state = 2
 
             # create a Transaction and broadcast it
-            txn = Transaction(2, 'command1')
+            txn = Transaction(2, 'command1', 1)
             node.broadcast(txn, 'TXN')
 
             # create another Transaction a little bit later and broadcast it
-            txn2 = Transaction(2, 'command2')
+            txn2 = Transaction(2, 'command2', 2)
             deferLater(reactor, 20, node.broadcast, txn2, 'TXN')
 
     @staticmethod
@@ -229,15 +229,15 @@ class IntegrationScenarios:
             node.state = 0
 
             # create a Transaction and broadcast it
-            txn = Transaction(2, 'command1')
+            txn = Transaction(2, 'command1', 1)
             node.broadcast(txn, 'TXN')
 
             # create another Transaction a little bit later and broadcast it
-            txn2 = Transaction(2, 'command2')
+            txn2 = Transaction(2, 'command2', 2)
             deferLater(reactor, 20, node.broadcast, txn2, 'TXN')
 
             # create another Transaction a little bit later and broadcast it
-            txn3 = Transaction(2, 'command3')
+            txn3 = Transaction(2, 'command3', 3)
             deferLater(reactor, 40, node.broadcast, txn3, 'TXN')
 
     @staticmethod
@@ -263,13 +263,13 @@ class IntegrationScenarios:
             node.state = 1
 
             # create a Transaction and broadcast it
-            txn = Transaction(2, 'command1')
+            txn = Transaction(2, 'command1', 1)
             node.broadcast(txn, 'TXN')
 
             # create another Transaction a little bit later and broadcast it
-            txn2 = Transaction(2, 'command2')
+            txn2 = Transaction(2, 'command2', 2)
             deferLater(reactor, 20, node.broadcast, txn2, 'TXN')
 
             # create another Transaction a little bit later and broadcast it
-            txn3 = Transaction(2, 'command3')
+            txn3 = Transaction(2, 'command3', 3)
             deferLater(reactor, 40, node.broadcast, txn3, 'TXN')

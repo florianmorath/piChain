@@ -22,11 +22,11 @@ class TestBlocktree(TestCase):
         self.bt.db.close()
 
     def test_write(self):
-        b1 = Block(1, GENESIS.block_id, ['a'])
-        b2 = Block(2, GENESIS.block_id, ['a'])
-        b3 = Block(3, b2.block_id, ['a'])
-        b4 = Block(4, b3.block_id, ['a'])
-        b5 = Block(5, b2.block_id, ['a'])
+        b1 = Block(1, GENESIS.block_id, ['a'], 1)
+        b2 = Block(2, GENESIS.block_id, ['a'], 2)
+        b3 = Block(3, b2.block_id, ['a'], 3)
+        b4 = Block(4, b3.block_id, ['a'], 4)
+        b5 = Block(5, b2.block_id, ['a'], 5)
 
         self.bt.add_block(b1)
         self.bt.add_block(b2)
@@ -41,11 +41,11 @@ class TestBlocktree(TestCase):
         assert self.bt.db.get(str(b5.block_id).encode()) == b5.serialize()
 
     def test_read(self):
-        b1 = Block(1, GENESIS.block_id, ['a'])
-        b2 = Block(2, GENESIS.block_id, ['a'])
-        b3 = Block(3, b2.block_id, ['a'])
-        b4 = Block(4, b3.block_id, ['a'])
-        b5 = Block(5, b2.block_id, ['a'])
+        b1 = Block(1, GENESIS.block_id, ['a'], 1)
+        b2 = Block(2, GENESIS.block_id, ['a'], 2)
+        b3 = Block(3, b2.block_id, ['a'], 3)
+        b4 = Block(4, b3.block_id, ['a'], 4)
+        b5 = Block(5, b2.block_id, ['a'], 5)
 
         self.bt.add_block(b1)
         self.bt.add_block(b2)

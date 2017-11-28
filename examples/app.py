@@ -3,7 +3,7 @@
 from piChain.PaxosLogic import Node
 from twisted.internet import reactor
 from twisted.internet.task import deferLater
-
+from tests.integration_scenarios import IntegrationScenarios
 
 import logging
 import argparse
@@ -16,8 +16,8 @@ def tx_committed(commands):
         commands (list): list of commands inside committed block (one per Transaction)
 
     """
-    for command in commands:
-        logging.debug('command committed: %s', command)
+    # for command in commands:
+    #     logging.debug('command committed: %s', command)
 
 
 def main():
@@ -33,9 +33,11 @@ def main():
     node.tx_committed = tx_committed
     node.start_server()
 
-    if node_index == '0':
-        deferLater(reactor, 20, node.make_txn, 'sql_command1')
-        deferLater(reactor, 40, node.make_txn, 'sql_command2')
+    # if node_index == '0':
+    #     deferLater(reactor, 20, node.make_txn, 'sql_command1')
+    #     deferLater(reactor, 40, node.make_txn, 'sql_command2')
+
+    deferLater(reactor, 11, IntegrationScenarios.scenario4, node)
 
     reactor.run()
 

@@ -21,7 +21,7 @@ class TestNode(TestCase):
         try_msg = PaxosMessage('TRY', 1)
         try_msg.last_committed_block = GENESIS
 
-        b = Block(1, GENESIS.block_id, ['a'])
+        b = Block(1, GENESIS.block_id, ['a'], 1)
         b.depth = 1
         try_msg.new_block = b
 
@@ -39,7 +39,7 @@ class TestNode(TestCase):
         # try_ok message with no prop/supp block stored locally and message does not contain a propose block
         try_ok = PaxosMessage('TRY_OK', 1)
 
-        b = Block(1, GENESIS.block_id, ['a'])
+        b = Block(1, GENESIS.block_id, ['a'], 1)
         b.depth = 1
 
         self.node.c_request_seq = 1
@@ -55,7 +55,7 @@ class TestNode(TestCase):
         # try_ok message with prop/supp block stored locally and message does not contain a propose block
         try_ok = PaxosMessage('TRY_OK', 1)
 
-        b = Block(1, GENESIS.block_id, ['a'])
+        b = Block(1, GENESIS.block_id, ['a'], 1)
         b.depth = 1
 
         self.node.c_request_seq = 1
@@ -74,7 +74,7 @@ class TestNode(TestCase):
         # try_ok message with no prop/supp block stored locally and message does contain a propose block
         try_ok = PaxosMessage('TRY_OK', 1)
 
-        b = Block(1, GENESIS.block_id, ['a'])
+        b = Block(1, GENESIS.block_id, ['a'], 1)
         b.depth = 1
 
         try_ok.supp_block = b
@@ -96,7 +96,7 @@ class TestNode(TestCase):
     def test_receive_paxos_message_propose(self):
         propose = PaxosMessage('PROPOSE', 1)
 
-        b = Block(1, GENESIS.block_id, ['a'])
+        b = Block(1, GENESIS.block_id, ['a'], 1)
         b.depth = 1
 
         propose.new_block = GENESIS
@@ -112,7 +112,7 @@ class TestNode(TestCase):
     def test_receive_paxos_message_propose_ack(self):
         propose_ack = PaxosMessage('PROPOSE_ACK', 1)
 
-        b = Block(1, GENESIS.block_id, ['a'])
+        b = Block(1, GENESIS.block_id, ['a'], 1)
         b.depth = 1
 
         propose_ack.com_block = b
@@ -131,11 +131,11 @@ class TestNode(TestCase):
 
     def test_create_block(self):
         # create a blocktree and add blocks to it
-        b1 = Block(1, GENESIS.block_id, [Transaction(1, 'a')])
-        b2 = Block(2, GENESIS.block_id, [Transaction(1, 'a')])
-        b3 = Block(3, b2.block_id, [Transaction(1, 'a')])
-        b4 = Block(4, b3.block_id, [Transaction(1, 'a')])
-        b5 = Block(5, b2.block_id, [Transaction(1, 'a')])
+        b1 = Block(1, GENESIS.block_id, [Transaction(1, 'a', 1)], 1)
+        b2 = Block(2, GENESIS.block_id, [Transaction(1, 'a', 2)], 2)
+        b3 = Block(3, b2.block_id, [Transaction(1, 'a', 3)], 3)
+        b4 = Block(4, b3.block_id, [Transaction(1, 'a', 4)], 4)
+        b5 = Block(5, b2.block_id, [Transaction(1, 'a', 5)], 5)
 
         self.node.blocktree.add_block(b1)
         self.node.blocktree.add_block(b2)
@@ -145,7 +145,7 @@ class TestNode(TestCase):
 
         self.node.blocktree.head_block = b4
 
-        self.node.new_txs = [Transaction(1, 'a')]
+        self.node.new_txs = [Transaction(1, 'a', 6), 6]
 
         c = self.node.create_block()
         assert len(self.node.new_txs) == 0
@@ -153,11 +153,11 @@ class TestNode(TestCase):
 
     def test_reach_genesis_block(self):
 
-        b1 = Block(1, GENESIS.block_id, [Transaction(1, 'a')])
-        b2 = Block(2, GENESIS.block_id, [Transaction(1, 'a')])
-        b3 = Block(3, b2.block_id, [Transaction(1, 'a')])
-        b4 = Block(4, b3.block_id, [Transaction(1, 'a')])
-        b5 = Block(5, b2.block_id, [Transaction(1, 'a')])
+        b1 = Block(1, GENESIS.block_id, [Transaction(1, 'a', 1)], 1)
+        b2 = Block(2, GENESIS.block_id, [Transaction(1, 'a', 2)], 2)
+        b3 = Block(3, b2.block_id, [Transaction(1, 'a', 3)], 3)
+        b4 = Block(4, b3.block_id, [Transaction(1, 'a', 4)], 4)
+        b5 = Block(5, b2.block_id, [Transaction(1, 'a', 5)], 5)
 
         self.node.blocktree.add_block(b1)
         self.node.blocktree.add_block(b2)
@@ -167,7 +167,7 @@ class TestNode(TestCase):
 
         assert self.node.reach_genesis_block(b5)
 
-        b = Block(1, 1234, [Transaction(1, 'a')])
+        b = Block(1, 1234, [Transaction(1, 'a', 6)], 6)
 
         self.node.broadcast = MagicMock()
         self.node.reach_genesis_block(b)
@@ -175,11 +175,11 @@ class TestNode(TestCase):
         assert self.node.broadcast.called
 
     def test_receive_request_blocks_message(self):
-        b1 = Block(1, GENESIS.block_id, [Transaction(1, 'a')])
-        b2 = Block(2, GENESIS.block_id, [Transaction(1, 'a')])
-        b3 = Block(3, b2.block_id, [Transaction(1, 'a')])
-        b4 = Block(4, b3.block_id, [Transaction(1, 'a')])
-        b5 = Block(5, b2.block_id, [Transaction(1, 'a')])
+        b1 = Block(1, GENESIS.block_id, [Transaction(1, 'a', 1)], 1)
+        b2 = Block(2, GENESIS.block_id, [Transaction(1, 'a', 2)], 2)
+        b3 = Block(3, b2.block_id, [Transaction(1, 'a', 3)], 3)
+        b4 = Block(4, b3.block_id, [Transaction(1, 'a', 4)], 4)
+        b5 = Block(5, b2.block_id, [Transaction(1, 'a', 5)], 5)
 
         self.node.blocktree.add_block(b1)
         self.node.blocktree.add_block(b2)
@@ -195,12 +195,12 @@ class TestNode(TestCase):
         assert self.node.respond.called
 
     def test_move_to_block(self):
-        b1 = Block(1, GENESIS.block_id, [Transaction(1, 'a')])
-        b2 = Block(2, GENESIS.block_id, [Transaction(2, 'a')])
-        b3 = Block(3, b2.block_id, [Transaction(3, 'a')])
-        b4 = Block(4, b3.block_id, [Transaction(4, 'a')])
-        b5 = Block(5, b2.block_id, [Transaction(5, 'a')])
-        b6 = Block(6, b4.block_id, [Transaction(6, 'a')])
+        b1 = Block(1, GENESIS.block_id, [Transaction(1, 'a', 1)], 1)
+        b2 = Block(2, GENESIS.block_id, [Transaction(2, 'a', 2)], 2)
+        b3 = Block(3, b2.block_id, [Transaction(3, 'a', 3)], 3)
+        b4 = Block(4, b3.block_id, [Transaction(4, 'a', 4)], 4)
+        b5 = Block(5, b2.block_id, [Transaction(5, 'a', 5)], 5)
+        b6 = Block(6, b4.block_id, [Transaction(6, 'a', 6)], 6)
 
         self.node.blocktree.add_block(b1)
         self.node.blocktree.add_block(b2)
@@ -227,7 +227,7 @@ class TestNode(TestCase):
         assert self.node.blocktree.head_block == b1
 
     def test_receive_transaction(self):
-        txn = Transaction(0, 'a')
+        txn = Transaction(0, 'a', 1)
 
         # test timeout
         clock = task.Clock()
@@ -247,11 +247,11 @@ class TestNode(TestCase):
 
     def test_timeout_over(self):
         # create a blocktree and add blocks to it
-        b1 = Block(1, GENESIS.block_id, [Transaction(1, 'a')])
-        b2 = Block(2, GENESIS.block_id, [Transaction(1, 'a')])
-        b3 = Block(3, b2.block_id, [Transaction(1, 'a')])
-        b4 = Block(4, b3.block_id, [Transaction(1, 'a')])
-        b5 = Block(5, b2.block_id, [Transaction(1, 'a')])
+        b1 = Block(1, GENESIS.block_id, [Transaction(1, 'a', 1)], 1)
+        b2 = Block(2, GENESIS.block_id, [Transaction(1, 'a', 2)], 2)
+        b3 = Block(3, b2.block_id, [Transaction(1, 'a', 3)], 3)
+        b4 = Block(4, b3.block_id, [Transaction(1, 'a', 4)], 4)
+        b5 = Block(5, b2.block_id, [Transaction(1, 'a', 5)], 5)
 
         self.node.blocktree.add_block(b1)
         self.node.blocktree.add_block(b2)
@@ -261,7 +261,7 @@ class TestNode(TestCase):
 
         self.node.blocktree.head_block = b4
 
-        txn = Transaction(1, 'a')
+        txn = Transaction(1, 'a', 1)
         self.node.new_txs = [txn]
         self.node.broadcast = MagicMock()
         self.node.state = 0

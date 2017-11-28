@@ -1,6 +1,5 @@
 """This module contains all classes that need to be serialized."""
 
-import itertools
 import json
 import jsonpickle
 
@@ -61,11 +60,10 @@ class RespondBlockMessage:
 
 
 class Block:
-    new_seq = itertools.count()
 
-    def __init__(self, creator_id, parent_block_id, txs):
+    def __init__(self, creator_id, parent_block_id, txs, counter):
         self.creator_id = creator_id
-        self.SEQ = next(Block.new_seq)
+        self.SEQ = counter
         self.block_id = int(str(self.creator_id) + str(self.SEQ))  # (creator_id || SEQ)
         self.creator_state = None
         self.parent_block_id = parent_block_id  # parent block id
@@ -100,11 +98,9 @@ class Block:
 
 
 class Transaction:
-    new_seq = itertools.count()
-
-    def __init__(self, creator_id, content):
+    def __init__(self, creator_id, content, counter):
         self.creator_id = creator_id
-        self.SEQ = next(Transaction.new_seq)
+        self.SEQ = counter
         self.txn_id = int(str(self.creator_id) + str(self.SEQ))
         self.content = content  # a string which can represent a command for example
 

@@ -72,7 +72,7 @@ class TestConnection(unittest.TestCase):
         """
         self.node.receive_transaction = MagicMock()
 
-        txn = Transaction(0, 'command1')
+        txn = Transaction(0, 'command1', 1)
         s = txn.serialize()
         self.proto.lineReceived(s)
 
@@ -87,9 +87,9 @@ class TestConnection(unittest.TestCase):
         """
         self.node.receive_block = MagicMock()
 
-        txn1 = Transaction(0, 'command1')
-        txn2 = Transaction(0, 'command2')
-        block = Block(0, 0, [txn1, txn2])
+        txn1 = Transaction(0, 'command1', 1)
+        txn2 = Transaction(0, 'command2', 2)
+        block = Block(0, 0, [txn1, txn2], 1)
         s = block.serialize()
         self.proto.lineReceived(s)
 
@@ -104,12 +104,12 @@ class TestConnection(unittest.TestCase):
         """
         self.node.receive_respond_blocks_message = MagicMock()
 
-        txn1 = Transaction(0, 'command1')
-        txn2 = Transaction(0, 'command2')
-        block = Block(0, 0, [txn1, txn2])
+        txn1 = Transaction(0, 'command1', 1)
+        txn2 = Transaction(0, 'command2', 2)
+        block = Block(0, 0, [txn1, txn2], 1)
 
-        txn3 = Transaction(0, 'command3')
-        block2 = Block(1, 1, [txn1, txn3])
+        txn3 = Transaction(0, 'command3', 3)
+        block2 = Block(1, 1, [txn1, txn3], 2)
 
         rsb = RespondBlockMessage([block, block2])
 
@@ -127,12 +127,12 @@ class TestConnection(unittest.TestCase):
         """
         self.node.receive_paxos_message = MagicMock()
 
-        txn1 = Transaction(0, 'command1')
-        txn2 = Transaction(0, 'command2')
-        block = Block(0, 0, [txn1, txn2])
+        txn1 = Transaction(0, 'command1', 1)
+        txn2 = Transaction(0, 'command2', 2)
+        block = Block(0, 0, [txn1, txn2], 1)
 
-        txn3 = Transaction(0, 'command3')
-        block2 = Block(1, 1, [txn1, txn3])
+        txn3 = Transaction(0, 'command3', 3)
+        block2 = Block(1, 1, [txn1, txn3], 2)
 
         pam = PaxosMessage('TRY', 2)
         pam.new_block = block

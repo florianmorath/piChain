@@ -282,18 +282,3 @@ class ConnectionManager(Factory):
         logging.info('Connection synchronization start...')
         deferred = self.reconnect_loop.start(5, True)
         deferred.addErrback(log.err)
-
-    def make_txn(self, command):
-        """This method is called by the app with the command to be committed.
-
-        Args:
-            command (str): command to be commited
-
-        """
-        # note: a deferred can only be fired once
-        # deferred = defer.Deferred()
-        # deferred.addCallback(self.tx_committed)
-        # self.tx_committed_deferred = deferred
-
-        txn = Transaction(self.id, command)
-        self.broadcast(txn, 'TXN')
