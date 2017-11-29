@@ -4,6 +4,8 @@ from piChain.messages import Block
 
 import plyvel
 import logging
+import os
+import shutil
 logging.disable(logging.CRITICAL)
 
 
@@ -14,12 +16,16 @@ class TestBlocktree(TestCase):
 
     def tearDown(self):
         if self.bt.db.closed:
-            path = '/tmp/pichain0'
+            path = os.path.dirname(os.getcwd()) + '/DB/node_0'
             self.bt.db = plyvel.DB(path, create_if_missing=True)
 
-        for k, v in self.bt.db:
-            self.bt.db.delete(k)
-        self.bt.db.close()
+        # delete level db on disk
+        path = os.path.dirname(os.getcwd()) + '/DB/'
+        try:
+            shutil.rmtree(path)
+        except Exception as e:
+            print(e)
+            raise
 
     def test_write(self):
         b1 = Block(1, GENESIS.block_id, ['a'], 1)

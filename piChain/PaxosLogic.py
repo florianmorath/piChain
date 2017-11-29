@@ -5,6 +5,7 @@ import logging
 import time
 import json
 import plyvel
+import os
 
 from piChain.PaxosNetwork import ConnectionManager
 from piChain.messages import PaxosMessage, Block, RequestBlockMessage, RespondBlockMessage, Transaction
@@ -33,7 +34,11 @@ class Blocktree:
         self.counter = 0    # gobal counter used for txn_id and block_id
 
         # create a db instance (s.t blocks can be recovered after a crash)
-        path = '/tmp/pichain' + str(node_index)
+        base_path = os.path.dirname(os.getcwd()) + '/DB'
+        if not os.path.exists(base_path):
+            os.makedirs(base_path)
+        path = os.path.dirname(os.getcwd()) + '/DB/node_' + str(node_index)
+        # path = '/tmp/pichain' + str(node_index)
         self.db = plyvel.DB(path, create_if_missing=True)
 
         # load blocks and counter (after crash)
@@ -551,7 +556,6 @@ class Node(ConnectionManager):
         if txn in self.new_txs:
             # create a new block
             b = self.create_block()
-            logging.debug('after create block')
             self.move_to_block(b)
             self.broadcast(b, 'BLK')
 

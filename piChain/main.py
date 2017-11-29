@@ -31,6 +31,7 @@ def main():
 
     args = parser.parse_args()
     node_index = args.node_index
+    logging.debug('start node %s', str(node_index))
 
     node = Node(node_index)
     node.tx_committed = tx_committed

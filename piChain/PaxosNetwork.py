@@ -57,7 +57,8 @@ class Connection(LineReceiver):
                 self.connection_manager.reconnect_loop.start(10)
 
         # stop the ping loop
-        self.lc_ping.stop()
+        if self.lc_ping.running:
+            self.lc_ping.stop()
 
     def lineReceived(self, line):
         """Callback that is called as soon as a line is available.
@@ -274,8 +275,10 @@ class ConnectionManager(Factory):
         """First starts a server listening on a port given in confg file. Then connect to other peers.
 
         """
+
         endpoint = TCP4ServerEndpoint(reactor, peers.get(str(self.id)).get('port'))
-        endpoint.listen(self)
+        d = endpoint.listen(self)
+        d.addErrback(log.err)
 
         # "client part" -> connect to all servers -> add handshake callback
         self.reconnect_loop = task.LoopingCall(self.connect_to_nodes, str(self.id))
