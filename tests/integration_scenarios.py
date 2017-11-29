@@ -88,7 +88,7 @@ class IntegrationScenarios:
             txn2 = Transaction(2, 'command2', 2)
             node.broadcast(txn, 'TXN')
 
-            deferLater(reactor, 20, node.broadcast, txn2, 'TXN')
+            deferLater(reactor, 1, node.broadcast, txn2, 'TXN')
 
     @staticmethod
     def scenario5(node):

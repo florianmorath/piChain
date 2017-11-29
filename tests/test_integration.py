@@ -19,8 +19,6 @@ class NodeProcess:
         self.proc.send_signal(signal.SIGINT)
         self.proc.wait(1)
         print("Node process %s terminated with code %i." % (self.name, self.proc.returncode))
-        print("====================== stdout =======================")
-        stdout.write(self.proc.stdout.read())
         print("====================== stderr =======================")
         stdout.write(self.proc.stderr.read())
         return self.proc.returncode
@@ -53,21 +51,92 @@ class TestMultiNode(TestCase):
                 print(e)
                 raise
 
-    def test_scenario2(self):
+    def start_processes_with_test_scenario(self, scenario_number):
         for i in range(len(peers)):
-            self.procs.append(NodeProcess("node %i" % i, str(i), "--test", str(2)))
+            self.procs.append(NodeProcess("node %i" % i, str(i), "--test", str(scenario_number)))
 
-        time.sleep(10)
+    def terminate_processes(self):
         for node_proc in self.procs:
             node_proc.proc.terminate()
 
+    def extract_committed_blocks(self):
         for node_proc in self.procs:
             if node_proc.name == 'node 0':
-                node0_stdout = node_proc.proc.stdout.read()
+                node0_lines = node_proc.proc.stdout.readlines()
             elif node_proc.name == 'node 1':
-                node1_stdout = node_proc.proc.stdout.read()
+                node1_lines = node_proc.proc.stdout.readlines()
             elif node_proc.name == 'node 2':
-                node2_stdout = node_proc.proc.stdout.read()
+                node2_lines = node_proc.proc.stdout.readlines()
 
-        assert node0_stdout == node1_stdout
-        assert node1_stdout == node2_stdout
+        node0_blocks = []
+        node1_blocks = []
+        node2_blocks = []
+
+        for line in node0_lines:
+            if 'block =' in line:
+                node0_blocks.append(line)
+
+        for line in node1_lines:
+            if 'block =' in line:
+                node1_blocks.append(line)
+
+        for line in node2_lines:
+            if 'block =' in line:
+                node2_blocks.append(line)
+
+        return node0_blocks, node1_blocks, node2_blocks
+
+    def test_scenario1(self):
+        self.start_processes_with_test_scenario(1)
+        time.sleep(1)
+        self.terminate_processes()
+
+        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+
+        assert len(node0_blocks) == 1
+        assert node0_blocks == node1_blocks
+        assert node2_blocks == node1_blocks
+
+    def test_scenario2(self):
+        self.start_processes_with_test_scenario(2)
+        time.sleep(1)
+        self.terminate_processes()
+
+        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+
+        assert len(node0_blocks) == 1
+        assert node0_blocks == node1_blocks
+        assert node2_blocks == node1_blocks
+
+    def test_scenario3(self):
+        self.start_processes_with_test_scenario(3)
+        time.sleep(1)
+        self.terminate_processes()
+
+        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+
+        assert len(node0_blocks) == 1
+        assert node0_blocks == node1_blocks
+        assert node2_blocks == node1_blocks
+
+    def test_scenario4(self):
+        self.start_processes_with_test_scenario(4)
+        time.sleep(2)
+        self.terminate_processes()
+
+        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+
+        assert len(node0_blocks) == 2
+        assert node0_blocks == node1_blocks
+        assert node2_blocks == node1_blocks
+
+    def test_scenario5(self):
+        self.start_processes_with_test_scenario(4)
+        time.sleep(2)
+        self.terminate_processes()
+
+        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+
+        assert len(node0_blocks) == 2
+        assert node0_blocks == node1_blocks
+        assert node2_blocks == node1_blocks

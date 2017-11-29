@@ -388,7 +388,7 @@ class Node(ConnectionManager):
 
         # update RTT's
         self.rtts.update({peer_node_id: rtt})
-        self.expected_rtt = max(self.rtts.values()) + 1
+        self.expected_rtt = max(self.rtts.values()) # + 0.1
         # logging.debug('overall expected rtt (max) = %s', str(self.expected_rtt))
 
     def move_to_block(self, target):
@@ -455,8 +455,10 @@ class Node(ConnectionManager):
 
             # print out ids of all committed blocks so far (-> testing purpose)
             self.committed_blocks_report()
+            # write committed block to stdout (-> testing purpose)
+            print('block = %s:', str(block.serialize()))
 
-            # call callable of app service, better: fire deferred ?
+            # call callable of app service
             commands = []
             for txn in block.txs:
                 commands.append(txn.content)
@@ -588,12 +590,10 @@ class Node(ConnectionManager):
         logging.debug('***********************')
         logging.debug('All committed blocks: ')
         logging.debug('block = %s:', str(b.serialize()))
-        print('block = %s:', str(b.serialize()))
 
         while b != GENESIS:
             b = self.blocktree.nodes.get(b.parent_block_id)
             logging.debug('block = %s:', str(b.serialize()))
-            print('block = %s:', str(b.serialize()))
         logging.debug('***********************')
 
     # methods used by the app

@@ -47,7 +47,7 @@ class Connection(LineReceiver):
 
     def connectionLost(self, reason=connectionDone):
         logging.info('Lost connection to %s with id %s: %s',
-                     str(self.transport.getPeer()), self.connection_manager.id, reason.getErrorMessage())
+                     str(self.transport.getPeer()), self.peer_node_id, reason.getErrorMessage())
 
         # remove peer_node_id from connection_manager.peers
         if self.peer_node_id is not None and self.peer_node_id in self.connection_manager.peers:
