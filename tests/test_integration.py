@@ -8,7 +8,6 @@ import signal
 import time
 import shutil
 import os
-import logging
 
 
 class NodeProcess:
@@ -61,4 +60,14 @@ class TestMultiNode(TestCase):
         time.sleep(10)
         for node_proc in self.procs:
             node_proc.proc.terminate()
-        assert True
+
+        for node_proc in self.procs:
+            if node_proc.name == 'node 0':
+                node0_stdout = node_proc.proc.stdout.read()
+            elif node_proc.name == 'node 1':
+                node1_stdout = node_proc.proc.stdout.read()
+            elif node_proc.name == 'node 2':
+                node2_stdout = node_proc.proc.stdout.read()
+
+        assert node0_stdout == node1_stdout
+        assert node1_stdout == node2_stdout

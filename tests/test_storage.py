@@ -12,6 +12,15 @@ logging.disable(logging.CRITICAL)
 class TestBlocktree(TestCase):
 
     def setUp(self):
+        # delete level db on disk
+        path = os.path.dirname(os.getcwd()) + '/DB/'
+        if os.path.exists(path):
+            try:
+                shutil.rmtree(path)
+            except Exception as e:
+                print(e)
+                raise
+
         self.bt = Blocktree(0)
 
     def tearDown(self):
@@ -21,13 +30,15 @@ class TestBlocktree(TestCase):
 
         # delete level db on disk
         path = os.path.dirname(os.getcwd()) + '/DB/'
-        try:
-            shutil.rmtree(path)
-        except Exception as e:
-            print(e)
-            raise
+        if os.path.exists(path):
+            try:
+                shutil.rmtree(path)
+            except Exception as e:
+                print(e)
+                raise
 
     def test_write(self):
+
         b1 = Block(1, GENESIS.block_id, ['a'], 1)
         b2 = Block(2, GENESIS.block_id, ['a'], 2)
         b3 = Block(3, b2.block_id, ['a'], 3)

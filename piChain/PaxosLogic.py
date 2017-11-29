@@ -588,10 +588,12 @@ class Node(ConnectionManager):
         logging.debug('***********************')
         logging.debug('All committed blocks: ')
         logging.debug('block = %s:', str(b.serialize()))
+        print('block = %s:', str(b.serialize()))
 
         while b != GENESIS:
             b = self.blocktree.nodes.get(b.parent_block_id)
             logging.debug('block = %s:', str(b.serialize()))
+            print('block = %s:', str(b.serialize()))
         logging.debug('***********************')
 
     # methods used by the app
