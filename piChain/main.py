@@ -1,14 +1,23 @@
-from twisted.internet.endpoints import TCP4ServerEndpoint
-from twisted.internet import reactor, task
+
+from twisted.internet import reactor
 from twisted.internet.task import deferLater
-from twisted.python import log
 
 from piChain.PaxosLogic import Node
-from piChain.config import peers
 from tests.integration_scenarios import IntegrationScenarios
 
 import argparse
 import logging
+
+
+def tx_committed(commands):
+    """Called once a block is committed.
+
+    Args:
+        commands (list): list of commands inside committed block (one per Transaction)
+
+    """
+    # for command in commands:
+    #     logging.debug('command committed: %s', command)
 
 
 def main():
@@ -17,25 +26,20 @@ def main():
 
     """
     parser = argparse.ArgumentParser()
+    parser.add_argument("node_index", type=int, help='Index of node in config.py')
+    parser.add_argument("--test", dest='test_scenario', type=int)
 
-    # start server
-    parser.add_argument("node_index", help='Index of node in config.py')
     args = parser.parse_args()
     node_index = args.node_index
 
-    node = Node(int(node_index))
+    node = Node(node_index)
+    node.tx_committed = tx_committed
+    node.start_server()
 
-    endpoint = TCP4ServerEndpoint(reactor, peers.get(node_index).get('port'))
-    endpoint.listen(node)
-
-    # "client part" -> connect to all servers -> add handshake callback
-    node.reconnect_loop = task.LoopingCall(node.connect_to_nodes, node_index)
-    logging.info('Connection synchronization start...')
-    deferred = node.reconnect_loop.start(5, True)
-    deferred.addErrback(log.err)
-
-    # start the paxos algorithm with some test scenarios (test purpose -> will be deleted)
-    deferLater(reactor, 11, IntegrationScenarios.scenario4, node)
+    if args.test_scenario is not None:
+        # start the paxos algorithm with given test scenario
+        scenario = 'scenario' + str(args.test_scenario)
+        deferLater(reactor, 5, getattr(IntegrationScenarios, scenario), node)
 
     # start reactor
     logging.info('start reactor')

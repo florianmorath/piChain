@@ -5,8 +5,6 @@ import logging
 import time
 import json
 import plyvel
-import itertools
-
 
 from piChain.PaxosNetwork import ConnectionManager
 from piChain.messages import PaxosMessage, Block, RequestBlockMessage, RespondBlockMessage, Transaction

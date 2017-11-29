@@ -27,6 +27,7 @@ class IntegrationScenarios:
             node (Node): Node calling this method
 
         """
+        logging.debug('start test scenario 1')
         if node.id == 2:
             # create a Transaction and send it to node with id == 0 (the quick node)
             txn = Transaction(2, 'command1', 1)
@@ -45,6 +46,8 @@ class IntegrationScenarios:
             node (Node): Node calling this method
 
         """
+        logging.debug('start test scenario 2')
+
         if node.id == 2:
             # create a Transaction and broadcast it
             txn = Transaction(2, 'command1', 1)
@@ -60,6 +63,7 @@ class IntegrationScenarios:
             node (Node): Node calling this method
 
         """
+        logging.debug('start test scenario 3')
         if node.id == 2:
             # create Transactions and broadcast them
             txn = Transaction(2, 'command1', 1)
@@ -77,6 +81,7 @@ class IntegrationScenarios:
             node (Node): Node calling this method
 
         """
+        logging.debug('start test scenario 4')
         if node.id == 2:
             # create Transactions and broadcast them
             txn = Transaction(2, 'command1', 1)
@@ -95,6 +100,7 @@ class IntegrationScenarios:
             node (Node): Node calling this method
 
         """
+        logging.debug('start test scenario 5')
         if node.id == 2:
             # create a Transaction and broadcast it
             txn = Transaction(2, 'command1', 1)
@@ -115,6 +121,7 @@ class IntegrationScenarios:
             node (Node): Node calling this method
 
         """
+        logging.debug('start test scenario 6')
         if node.id == 0:
             # create a Transaction and broadcast it
             txn = Transaction(0, 'command1', 1)
@@ -129,6 +136,7 @@ class IntegrationScenarios:
             node (Node): Node calling this method
 
         """
+        logging.debug('start test scenario 7')
         if node.id == 0:
             # medium node
             node.state = 1
@@ -154,6 +162,7 @@ class IntegrationScenarios:
             node (Node): Node calling this method
 
         """
+        logging.debug('start test scenario 8')
         if node.id == 0:
             # quick node
             node.state = 0
@@ -184,6 +193,7 @@ class IntegrationScenarios:
             node (Node): Node calling this method
 
         """
+        logging.debug('start test scenario 9')
         if node.id == 0:
             # slow node
             node.state = 2
@@ -216,6 +226,7 @@ class IntegrationScenarios:
             node (Node): Node calling this method
 
         """
+        logging.debug('start test scenario 10')
         if node.id == 0:
             # quick node
             node.state = 0
@@ -250,6 +261,7 @@ class IntegrationScenarios:
             node (Node): Node calling this method
 
         """
+        logging.debug('start test scenario 11')
         if node.id == 0:
             # medium node
             node.state = 1

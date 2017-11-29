@@ -280,5 +280,5 @@ class ConnectionManager(Factory):
         # "client part" -> connect to all servers -> add handshake callback
         self.reconnect_loop = task.LoopingCall(self.connect_to_nodes, str(self.id))
         logging.info('Connection synchronization start...')
-        deferred = self.reconnect_loop.start(5, True)
+        deferred = self.reconnect_loop.start(0.1, True)
         deferred.addErrback(log.err)
