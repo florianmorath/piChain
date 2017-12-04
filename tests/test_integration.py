@@ -13,7 +13,8 @@ import os
 class NodeProcess:
     def __init__(self, name, *args):
         self.name = name
-        self.proc = Popen(["pichain"] + list(args), stdout=PIPE, stderr=PIPE, universal_newlines=True)
+        path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/piChain/main.py'
+        self.proc = Popen(["python", path] + list(args), stdout=PIPE, stderr=PIPE, universal_newlines=True)
 
     def shutdown(self):
         self.proc.send_signal(signal.SIGINT)
