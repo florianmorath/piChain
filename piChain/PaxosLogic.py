@@ -34,11 +34,10 @@ class Blocktree:
         self.counter = 0    # gobal counter used for txn_id and block_id
 
         # create a db instance (s.t blocks can be recovered after a crash)
-        base_path = os.path.dirname(os.getcwd()) + '/DB'
+        base_path = os.path.expanduser('~/.pichain/DB')
         if not os.path.exists(base_path):
             os.makedirs(base_path)
-        path = os.path.dirname(os.getcwd()) + '/DB/node_' + str(node_index)
-        # path = '/tmp/pichain' + str(node_index)
+        path = base_path + '/node_' + str(node_index)
         self.db = plyvel.DB(path, create_if_missing=True)
 
         # load blocks and counter (after crash)
@@ -388,7 +387,7 @@ class Node(ConnectionManager):
 
         # update RTT's
         self.rtts.update({peer_node_id: rtt})
-        self.expected_rtt = max(self.rtts.values()) # + 0.1
+        self.expected_rtt = max(self.rtts.values())  # + 0.1
         # logging.debug('overall expected rtt (max) = %s', str(self.expected_rtt))
 
     def move_to_block(self, target):

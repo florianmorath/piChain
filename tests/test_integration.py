@@ -19,6 +19,8 @@ class NodeProcess:
         self.proc.send_signal(signal.SIGINT)
         self.proc.wait(1)
         print("Node process %s terminated with code %i." % (self.name, self.proc.returncode))
+        # print("====================== stdout =======================")
+        # stdout.write(self.proc.stdout.read())
         print("====================== stderr =======================")
         stdout.write(self.proc.stderr.read())
         return self.proc.returncode
@@ -30,10 +32,10 @@ class TestMultiNode(TestCase):
         self.procs = []
 
         # delete level db on disk
-        path = os.path.dirname(os.getcwd()) + '/DB/'
-        if os.path.exists(path):
+        base_path = os.path.expanduser('~/.pichain/DB')
+        if os.path.exists(base_path):
             try:
-                shutil.rmtree(path)
+                shutil.rmtree(base_path)
             except Exception as e:
                 print(e)
                 raise
@@ -43,10 +45,10 @@ class TestMultiNode(TestCase):
             raise Exception("Subprocess failed!")
 
         # delete level db on disk
-        path = os.path.dirname(os.getcwd()) + '/DB/'
-        if os.path.exists(path):
+        base_path = os.path.expanduser('~/.pichain/DB')
+        if os.path.exists(base_path):
             try:
-                shutil.rmtree(path)
+                shutil.rmtree(base_path)
             except Exception as e:
                 print(e)
                 raise

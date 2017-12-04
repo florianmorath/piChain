@@ -12,11 +12,11 @@ logging.disable(logging.CRITICAL)
 class TestBlocktree(TestCase):
 
     def setUp(self):
-        # delete level db on disk
-        path = os.path.dirname(os.getcwd()) + '/DB/'
-        if os.path.exists(path):
+        # delete level db on disk if exists
+        base_path = os.path.expanduser('~/.pichain/DB')
+        if os.path.exists(base_path):
             try:
-                shutil.rmtree(path)
+                shutil.rmtree(base_path)
             except Exception as e:
                 print(e)
                 raise
@@ -25,14 +25,15 @@ class TestBlocktree(TestCase):
 
     def tearDown(self):
         if self.bt.db.closed:
-            path = os.path.dirname(os.getcwd()) + '/DB/node_0'
+            base_path = os.path.expanduser('~/.pichain/DB')
+            path = base_path + '/node_0'
             self.bt.db = plyvel.DB(path, create_if_missing=True)
 
         # delete level db on disk
-        path = os.path.dirname(os.getcwd()) + '/DB/'
-        if os.path.exists(path):
+        base_path = os.path.expanduser('~/.pichain/DB')
+        if os.path.exists(base_path):
             try:
-                shutil.rmtree(path)
+                shutil.rmtree(base_path)
             except Exception as e:
                 print(e)
                 raise
