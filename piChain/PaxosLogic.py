@@ -487,7 +487,8 @@ class Node(ConnectionManager):
 
         if not self.blocktree.ancestor(block, self.blocktree.committed_block) and \
            block != self.blocktree.committed_block:
-            logging.debug('committing a block: with block id = %s', str(block.block_id))
+
+            last_committed_block = self.blocktree.committed_block
             self.blocktree.committed_block = block
             self.move_to_block(block)
 
@@ -495,16 +496,28 @@ class Node(ConnectionManager):
             block_bytes = block.serialize()
             self.blocktree.db.put(b'committed_block', block_bytes)
 
+            # iterate over blocks from currently committed block to last committed block
+            # need to commit all those blocks (not just currently committed block)
+            block_list = []
+            b = self.blocktree.committed_block
+            while b != last_committed_block:
+                block_list.append(b)
+                b = self.blocktree.nodes.get(b.parent_block_id)
+            block_list.reverse()
+
+            for b in block_list:
+                # write committed block to stdout (-> testing purpose)
+                print('block = %s:', str(b.serialize()))
+
+                logging.debug('committing a block: with block id = %s', str(b.block_id))
+                # call callable of app service
+                commands = []
+                for txn in b.txs:
+                    commands.append(txn.content)
+                self.tx_committed(commands)
+
             # print out ids of all committed blocks so far (-> testing purpose)
             self.committed_blocks_report()
-            # write committed block to stdout (-> testing purpose)
-            print('block = %s:', str(block.serialize()))
-
-            # call callable of app service
-            commands = []
-            for txn in block.txs:
-                commands.append(txn.content)
-            self.tx_committed(commands)
 
     def reach_genesis_block(self, block):
         """Check if there is a path from `block` to `GENESIS` block. If a block on the path is not contained in

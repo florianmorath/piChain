@@ -111,6 +111,11 @@ class IntegrationScenarios:
             txn = Transaction(1, 'command2', 2)
             node.broadcast(txn, 'TXN')
 
+            # create another Transaction and broadcast it
+            txn3 = Transaction(1, 'command3', 3)
+            node.broadcast(txn, 'TXN')
+            deferLater(reactor, 1, node.broadcast, txn3, 'TXN')
+
     @staticmethod
     def scenario6(node):
         """Quick node broadcasts a transaction.
