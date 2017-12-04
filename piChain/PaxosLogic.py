@@ -429,7 +429,7 @@ class Node(ConnectionManager):
 
         # update RTT's
         self.rtts.update({peer_node_id: rtt})
-        self.expected_rtt = max(self.rtts.values())  # + 0.1
+        self.expected_rtt = max(self.rtts.values()) + 0.1
         # logging.debug('overall expected rtt (max) = %s', str(self.expected_rtt))
 
     def move_to_block(self, target):

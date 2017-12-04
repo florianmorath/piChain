@@ -19,10 +19,10 @@ class NodeProcess:
     def shutdown(self):
         self.proc.send_signal(signal.SIGINT)
         self.proc.wait(1)
+        print('')
+        print("==========")
         print("Node process %s terminated with code %i." % (self.name, self.proc.returncode))
-        # print("====================== stdout =======================")
-        # stdout.write(self.proc.stdout.read())
-        print("====================== stderr =======================")
+
         stdout.write(self.proc.stderr.read())
         return self.proc.returncode
 
@@ -42,6 +42,7 @@ class TestMultiNode(TestCase):
                 raise
 
     def tearDown(self):
+        print("====================== stderr =======================")
         if any(proc.shutdown() for proc in self.procs):
             raise Exception("Subprocess failed!")
 
@@ -63,6 +64,10 @@ class TestMultiNode(TestCase):
             node_proc.proc.terminate()
 
     def extract_committed_blocks(self):
+        node0_lines = []
+        node1_lines = []
+        node2_lines = []
+
         for node_proc in self.procs:
             if node_proc.name == 'node 0':
                 node0_lines = node_proc.proc.stdout.readlines()
@@ -75,15 +80,28 @@ class TestMultiNode(TestCase):
         node1_blocks = []
         node2_blocks = []
 
+        print("====================== stdout =======================")
+        print('')
+        print("==========")
+        print('node0:')
         for line in node0_lines:
+            print(line)
             if 'block =' in line:
                 node0_blocks.append(line)
 
+        print('')
+        print("==========")
+        print('node1:')
         for line in node1_lines:
+            print(line)
             if 'block =' in line:
                 node1_blocks.append(line)
 
+        print('')
+        print("==========")
+        print('node2:')
         for line in node2_lines:
+            print(line)
             if 'block =' in line:
                 node2_blocks.append(line)
 
@@ -91,7 +109,7 @@ class TestMultiNode(TestCase):
 
     def test_scenario1(self):
         self.start_processes_with_test_scenario(1)
-        time.sleep(1)
+        time.sleep(2)
         self.terminate_processes()
 
         node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
@@ -102,7 +120,7 @@ class TestMultiNode(TestCase):
 
     def test_scenario2(self):
         self.start_processes_with_test_scenario(2)
-        time.sleep(1)
+        time.sleep(2)
         self.terminate_processes()
 
         node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
@@ -113,7 +131,7 @@ class TestMultiNode(TestCase):
 
     def test_scenario3(self):
         self.start_processes_with_test_scenario(3)
-        time.sleep(1)
+        time.sleep(2)
         self.terminate_processes()
 
         node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
@@ -124,18 +142,7 @@ class TestMultiNode(TestCase):
 
     def test_scenario4(self):
         self.start_processes_with_test_scenario(4)
-        time.sleep(2)
-        self.terminate_processes()
-
-        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
-
-        assert len(node0_blocks) == 2
-        assert node0_blocks == node1_blocks
-        assert node2_blocks == node1_blocks
-
-    def test_scenario5(self):
-        self.start_processes_with_test_scenario(4)
-        time.sleep(2)
+        time.sleep(3)
         self.terminate_processes()
 
         node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
