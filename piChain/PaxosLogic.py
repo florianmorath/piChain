@@ -188,6 +188,21 @@ class Node(ConnectionManager):
 
         self.commit_running = False
 
+        # load server variables (after crash)
+        for key, value in self.blocktree.db:
+            if key == b's_max_block':
+                msg = json.loads(value)
+                block = Block.unserialize(msg)
+                self.s_max_block = block
+            elif key == b's_prop_block':
+                msg = json.loads(value)
+                block = Block.unserialize(msg)
+                self.s_prop_block = block
+            elif key == b's_supp_block':
+                msg = json.loads(value)
+                block = Block.unserialize(msg)
+                self.s_supp_block = block
+
     def receive_paxos_message(self, message, sender):
         """React on a received `message`. This method implements the main functionality of the paxos algorithm.
 
@@ -203,6 +218,11 @@ class Node(ConnectionManager):
 
             if self.s_max_block < message.new_block:
                 self.s_max_block = message.new_block
+
+                # write changes to disk (add s_max_block)
+                if self.s_max_block is not None:
+                    block_bytes = self.s_max_block.serialize()
+                    self.blocktree.db.put(b's_max_block', block_bytes)
 
                 # create a TRY_OK message
                 try_ok = PaxosMessage('TRY_OK', message.request_seq)
@@ -251,6 +271,15 @@ class Node(ConnectionManager):
                 self.s_prop_block = message.com_block
                 self.s_supp_block = message.new_block
 
+                # write changes to disk (add s_prop_block and s_supp_block)
+                if self.s_prop_block is not None:
+                    block_bytes = self.s_prop_block.serialize()
+                    self.blocktree.db.put(b's_prop_block', block_bytes)
+
+                if self.s_supp_block is not None:
+                    block_bytes = self.s_supp_block.serialize()
+                    self.blocktree.db.put(b's_supp_block', block_bytes)
+
                 # create a PROPOSE_ACK message
                 propose_ack = PaxosMessage('PROPOSE_ACK', message.request_seq)
                 propose_ack.com_block = message.com_block
@@ -284,6 +313,19 @@ class Node(ConnectionManager):
             self.s_prop_block = None
             self.s_max_block = GENESIS
             self.commit_running = False
+
+            # write changes to disk (add s_max_block, s_prop_block and s_supp_block)
+            if self.s_max_block is not None:
+                block_bytes = self.s_max_block.serialize()
+                self.blocktree.db.put(b's_max_block', block_bytes)
+
+            if self.s_prop_block is not None:
+                block_bytes = self.s_prop_block.serialize()
+                self.blocktree.db.put(b's_prop_block', block_bytes)
+
+            if self.s_supp_block is not None:
+                block_bytes = self.s_supp_block.serialize()
+                self.blocktree.db.put(b's_supp_block', block_bytes)
 
     def receive_transaction(self, txn):
         """React on a received `txn` depending on state.
@@ -426,6 +468,7 @@ class Node(ConnectionManager):
             # write changes to disk (add headblock)
             block_bytes = target.serialize()
             self.blocktree.db.put(b'head_block', block_bytes)
+
             # broadcast txs in to_broadcast
             for tx in to_broadcast:
                 self.broadcast(tx, 'TXN')
