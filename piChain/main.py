@@ -40,7 +40,7 @@ def main():
     if args.test_scenario is not None:
         # start the paxos algorithm with given test scenario
         scenario = 'scenario' + str(args.test_scenario)
-        deferLater(reactor, 1, getattr(IntegrationScenarios, scenario), node)
+        deferLater(reactor, 1.5, getattr(IntegrationScenarios, scenario), node)
 
     # start reactor
     logging.info('start reactor')

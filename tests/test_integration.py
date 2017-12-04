@@ -111,7 +111,7 @@ class TestMultiNode(TestCase):
 
     def test_scenario1(self):
         self.start_processes_with_test_scenario(1)
-        time.sleep(2)
+        time.sleep(3)
         self.terminate_processes()
 
         node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
@@ -122,7 +122,7 @@ class TestMultiNode(TestCase):
 
     def test_scenario2(self):
         self.start_processes_with_test_scenario(2)
-        time.sleep(2)
+        time.sleep(3)
         self.terminate_processes()
 
         node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
@@ -133,7 +133,7 @@ class TestMultiNode(TestCase):
 
     def test_scenario3(self):
         self.start_processes_with_test_scenario(3)
-        time.sleep(2)
+        time.sleep(3)
         self.terminate_processes()
 
         node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
@@ -144,7 +144,7 @@ class TestMultiNode(TestCase):
 
     def test_scenario4(self):
         self.start_processes_with_test_scenario(4)
-        time.sleep(3)
+        time.sleep(4)
         self.terminate_processes()
 
         node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
@@ -161,5 +161,27 @@ class TestMultiNode(TestCase):
         node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
 
         assert len(node0_blocks) == 3
+        assert node0_blocks == node1_blocks
+        assert node2_blocks == node1_blocks
+
+    def test_scenario6(self):
+        self.start_processes_with_test_scenario(6)
+        time.sleep(3)
+        self.terminate_processes()
+
+        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+
+        assert len(node0_blocks) == 1
+        assert node0_blocks == node1_blocks
+        assert node2_blocks == node1_blocks
+
+    def test_scenario7(self):
+        self.start_processes_with_test_scenario(7)
+        time.sleep(3)
+        self.terminate_processes()
+
+        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+
+        assert len(node0_blocks) == 1
         assert node0_blocks == node1_blocks
         assert node2_blocks == node1_blocks
