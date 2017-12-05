@@ -156,7 +156,7 @@ class IntegrationScenarios:
 
             # create a Transaction and broadcast it
             txn = Transaction(2, 'command1', 1)
-            node.broadcast(txn, 'TXN')
+            deferLater(reactor, 0.1, node.broadcast, txn, 'TXN')
 
     @staticmethod
     def scenario8(node):
@@ -182,7 +182,7 @@ class IntegrationScenarios:
 
             # create a Transaction and broadcast it
             txn = Transaction(2, 'command1', 1)
-            node.broadcast(txn, 'TXN')
+            deferLater(reactor, 0.1, node.broadcast, txn, 'TXN')
 
     @staticmethod
     def scenario9(node):
@@ -213,11 +213,11 @@ class IntegrationScenarios:
 
             # create a Transaction and broadcast it
             txn = Transaction(2, 'command1', 1)
-            node.broadcast(txn, 'TXN')
+            deferLater(reactor, 0.1, node.broadcast, txn, 'TXN')
 
             # create another Transaction a little bit later and broadcast it
             txn2 = Transaction(2, 'command2', 2)
-            deferLater(reactor, 20, node.broadcast, txn2, 'TXN')
+            deferLater(reactor, 1, node.broadcast, txn2, 'TXN')
 
     @staticmethod
     def scenario10(node):
@@ -246,18 +246,47 @@ class IntegrationScenarios:
 
             # create a Transaction and broadcast it
             txn = Transaction(2, 'command1', 1)
-            node.broadcast(txn, 'TXN')
-
-            # create another Transaction a little bit later and broadcast it
-            txn2 = Transaction(2, 'command2', 2)
-            deferLater(reactor, 20, node.broadcast, txn2, 'TXN')
-
-            # create another Transaction a little bit later and broadcast it
-            txn3 = Transaction(2, 'command3', 3)
-            deferLater(reactor, 40, node.broadcast, txn3, 'TXN')
+            deferLater(reactor, 0.1, node.broadcast, txn, 'TXN')
 
     @staticmethod
     def scenario11(node):
+        """Unhealthy state: q > 1. This scenario can happen because of a partition. The quick nodes will all
+        create blocks immediately and start a paxos instance (here is where the consistency guarantee of paxos is
+        needed because we have multiple paxos clients competing for their block to be committed).
+        Since a receipt of a block created by a quick node results in demoting to slow, all nodes will demote to slow
+        and we are in the scenario q = 0 / m = 0 described above. Thus we are eventually back in a healthy state.
+
+        Args:
+            node (Node): Node calling this method
+
+        """
+        logging.debug('start test scenario 10')
+        if node.id == 0:
+            # quick node
+            node.state = 0
+
+        elif node.id == 1:
+            # quick node
+            node.state = 0
+
+        elif node.id == 2:
+            # quick node
+            node.state = 0
+
+            # create a Transaction and broadcast it
+            txn = Transaction(2, 'command1', 1)
+            deferLater(reactor, 0.1, node.broadcast, txn, 'TXN')
+
+            # create another Transaction a little bit later and broadcast it
+            txn2 = Transaction(2, 'command2', 2)
+            deferLater(reactor, 2, node.broadcast, txn2, 'TXN')
+
+            # create another Transaction a little bit later and broadcast it
+            txn3 = Transaction(2, 'command3', 3)
+            deferLater(reactor, 4, node.broadcast, txn3, 'TXN')
+
+    @staticmethod
+    def scenario12(node):
         """Unhealthy state: q = 0 and m > 1. All the medium nodes will create a block and promote to quick. Since a
         receipt of a block where the creator state was quick demotes a node to slow, all nodes demote to slow and we
         are in scenario q = 0/m = 0 described above.  Thus we are eventually back in a healthy state.
@@ -282,11 +311,12 @@ class IntegrationScenarios:
             # create a Transaction and broadcast it
             txn = Transaction(2, 'command1', 1)
             node.broadcast(txn, 'TXN')
+            deferLater(reactor, 0.1, node.broadcast, txn, 'TXN')
 
             # create another Transaction a little bit later and broadcast it
             txn2 = Transaction(2, 'command2', 2)
-            deferLater(reactor, 20, node.broadcast, txn2, 'TXN')
+            deferLater(reactor, 2, node.broadcast, txn2, 'TXN')
 
             # create another Transaction a little bit later and broadcast it
             txn3 = Transaction(2, 'command3', 3)
-            deferLater(reactor, 40, node.broadcast, txn3, 'TXN')
+            deferLater(reactor, 4, node.broadcast, txn3, 'TXN')

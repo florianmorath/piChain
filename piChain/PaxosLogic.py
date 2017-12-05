@@ -216,7 +216,7 @@ class Node(ConnectionManager):
             # make sure last commited block of sender is also committed by this node
             self.commit(message.last_committed_block)
 
-            if self.s_max_block < message.new_block:
+            if self.s_max_block.depth < message.new_block.depth:
                 self.s_max_block = message.new_block
 
                 # write changes to disk (add s_max_block)
@@ -503,6 +503,10 @@ class Node(ConnectionManager):
             while b != last_committed_block:
                 block_list.append(b)
                 b = self.blocktree.nodes.get(b.parent_block_id)
+                if b is None:
+                    logging.debug('block to be committed is not descendent of last committed block -> error')
+                    return
+
             block_list.reverse()
 
             for b in block_list:

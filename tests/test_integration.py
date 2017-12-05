@@ -185,3 +185,58 @@ class TestMultiNode(TestCase):
         assert len(node0_blocks) == 1
         assert node0_blocks == node1_blocks
         assert node2_blocks == node1_blocks
+
+    def test_scenario8(self):
+        self.start_processes_with_test_scenario(8)
+        time.sleep(3)
+        self.terminate_processes()
+
+        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+
+        assert len(node0_blocks) == 1
+        assert node0_blocks == node1_blocks
+        assert node2_blocks == node1_blocks
+
+    def test_scenario9(self):
+        self.start_processes_with_test_scenario(9)
+        time.sleep(4)
+        self.terminate_processes()
+
+        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+
+        assert len(node0_blocks) == 2
+        assert node0_blocks == node1_blocks
+        assert node2_blocks == node1_blocks
+
+    def test_scenario10(self):
+        self.start_processes_with_test_scenario(10)
+        time.sleep(3)
+        self.terminate_processes()
+
+        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+
+        assert len(node0_blocks) == 1
+        assert node0_blocks == node1_blocks
+        assert node2_blocks == node1_blocks
+
+    def test_scenario11(self):
+        self.start_processes_with_test_scenario(11)
+        time.sleep(8)
+        self.terminate_processes()
+
+        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+
+        assert len(node0_blocks) == 3
+        assert node0_blocks == node1_blocks
+        assert node2_blocks == node1_blocks
+
+    def test_scenario12(self):
+        self.start_processes_with_test_scenario(12)
+        time.sleep(8)
+        self.terminate_processes()
+
+        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+
+        assert len(node0_blocks) == 3
+        assert node0_blocks == node1_blocks
+        assert node2_blocks == node1_blocks
