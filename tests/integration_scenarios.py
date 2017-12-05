@@ -260,7 +260,7 @@ class IntegrationScenarios:
             node (Node): Node calling this method
 
         """
-        logging.debug('start test scenario 10')
+        logging.debug('start test scenario 11')
         if node.id == 0:
             # quick node
             node.state = 0
@@ -295,7 +295,7 @@ class IntegrationScenarios:
             node (Node): Node calling this method
 
         """
-        logging.debug('start test scenario 11')
+        logging.debug('start test scenario 12')
         if node.id == 0:
             # medium node
             node.state = 1
@@ -320,3 +320,24 @@ class IntegrationScenarios:
             # create another Transaction a little bit later and broadcast it
             txn3 = Transaction(2, 'command3', 3)
             deferLater(reactor, 4, node.broadcast, txn3, 'TXN')
+
+    @staticmethod
+    def scenario13(node):
+        """TestNode crashes. Crash a node during a time nothing is happening.
+
+        Args:
+            node (Node): Node calling this method
+
+        """
+        logging.debug('start test scenario 13')
+        if node.id == 0:
+
+            # create a Transaction and broadcast it
+            txn = Transaction(0, 'command1', 1)
+            node.broadcast(txn, 'TXN')
+            deferLater(reactor, 0.1, node.broadcast, txn, 'TXN')
+
+            # create another Transaction after crashed node recovered
+            txn2 = Transaction(0, 'command2', 2)
+            deferLater(reactor, 6, node.broadcast, txn2, 'TXN')
+

@@ -473,7 +473,7 @@ class Node(ConnectionManager):
         # make sure block is reachable
         if not self.reach_genesis_block(block):
             return
-        logging.debug('block to be committed: %s', str(block.serialize()))
+
         if not self.blocktree.ancestor(block, self.blocktree.committed_block) and \
            block != self.blocktree.committed_block:
             last_committed_block = self.blocktree.committed_block

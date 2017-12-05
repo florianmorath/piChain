@@ -61,9 +61,20 @@ class TestMultiNode(TestCase):
         for i in range(len(peers)):
             self.procs.append(NodeProcess("node %i" % i, str(i), "--test", str(scenario_number)))
 
+    def start_single_process_with_test_scenario(self, scenario_number, i):
+        self.procs.append(NodeProcess("node %i" % i, str(i), "--test", str(scenario_number)))
+
     def terminate_processes(self):
         for node_proc in self.procs:
             node_proc.proc.terminate()
+
+    def terminate_single_process(self, i):
+        node_name = 'node ' + str(i)
+        for node_proc in self.procs:
+            if node_proc.name == node_name:
+                node_proc.proc.terminate()
+                print("====================== stderr =======================")
+                node_proc.shutdown()
 
     def extract_committed_blocks(self):
         node0_lines = []
@@ -108,6 +119,27 @@ class TestMultiNode(TestCase):
                 node2_blocks.append(line)
 
         return node0_blocks, node1_blocks, node2_blocks
+
+    def extract_committed_blocks_single_process(self, i):
+        node_lines = []
+        node_name = 'node ' + str(i)
+        for node_proc in self.procs:
+            if node_proc.name == node_name:
+                node_lines = node_proc.proc.stdout.readlines()
+
+        node_blocks = []
+
+        print("====================== stdout =======================")
+        print('')
+        print("==========")
+        print('node %s:' % i)
+        for line in node_lines:
+            print(line)
+            if 'block =' in line:
+                node_blocks.append(line)
+
+        return node_blocks
+
 
     def test_scenario1(self):
         self.start_processes_with_test_scenario(1)
@@ -238,5 +270,22 @@ class TestMultiNode(TestCase):
         node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
 
         assert len(node0_blocks) == 3
+        assert node0_blocks == node1_blocks
+        assert node2_blocks == node1_blocks
+
+    def test_scenario13_crash(self):
+        self.start_processes_with_test_scenario(13)
+        time.sleep(3)
+        self.terminate_single_process(1)
+        node1_blocks_before = self.extract_committed_blocks_single_process(1)
+        self.start_single_process_with_test_scenario(13, 1)
+        time.sleep(10)
+        self.terminate_processes()
+
+        node0_blocks, node1_blocks_after, node2_blocks = self.extract_committed_blocks()
+
+        node1_blocks = node1_blocks_before + node1_blocks_after
+
+        assert len(node0_blocks) == 2
         assert node0_blocks == node1_blocks
         assert node2_blocks == node1_blocks
