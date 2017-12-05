@@ -9,6 +9,7 @@ import logging
 import argparse
 
 
+
 def tx_committed(commands):
     """Called once a block is committed.
 
@@ -16,8 +17,8 @@ def tx_committed(commands):
         commands (list): list of commands inside committed block (one per Transaction)
 
     """
-    # for command in commands:
-    #     logging.debug('command committed: %s', command)
+    for command in commands:
+        logging.debug('command committed: %s', command)
 
 
 def main():
