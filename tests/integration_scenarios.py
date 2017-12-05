@@ -3,7 +3,10 @@ All scenarios are based on three running nodes with node id 0,1 and 2. Scenarios
 scenarios 7-11 test each possible unhealthy state the system can be in.
 
 note: Can for example use Multirun plugin of pyCharm or write a script to start all nodes at exactly the same time,
-this avoids the problem of initializing the state of the nodes at different times."""
+this avoids the problem of initializing the state of the nodes at different times.
+
+note: currently the tests only work locally
+"""
 
 import logging
 
@@ -323,7 +326,7 @@ class IntegrationScenarios:
 
     @staticmethod
     def scenario13(node):
-        """TestNode crashes. Crash a node during a time nothing is happening.
+        """TestNode crashes. Crash a slow node after a commit.
 
         Args:
             node (Node): Node calling this method
@@ -341,3 +344,22 @@ class IntegrationScenarios:
             txn2 = Transaction(0, 'command2', 2)
             deferLater(reactor, 6, node.broadcast, txn2, 'TXN')
 
+    @staticmethod
+    def scenario14(node):
+        """TestNode crashes. Crash the quick node after a commit.
+
+        Args:
+            node (Node): Node calling this method
+
+        """
+        logging.debug('start test scenario 14')
+        if node.id == 1:
+
+            # create a Transaction and broadcast it
+            txn = Transaction(1, 'command1', 1)
+            node.broadcast(txn, 'TXN')
+            deferLater(reactor, 0.1, node.broadcast, txn, 'TXN')
+
+            # create another Transaction after crashed node recovered
+            txn2 = Transaction(1, 'command2', 2)
+            deferLater(reactor, 6, node.broadcast, txn2, 'TXN')

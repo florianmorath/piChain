@@ -140,7 +140,6 @@ class TestMultiNode(TestCase):
 
         return node_blocks
 
-
     def test_scenario1(self):
         self.start_processes_with_test_scenario(1)
         time.sleep(3)
@@ -285,6 +284,23 @@ class TestMultiNode(TestCase):
         node0_blocks, node1_blocks_after, node2_blocks = self.extract_committed_blocks()
 
         node1_blocks = node1_blocks_before + node1_blocks_after
+
+        assert len(node0_blocks) == 2
+        assert node0_blocks == node1_blocks
+        assert node2_blocks == node1_blocks
+
+    def test_scenario14_crash(self):
+        self.start_processes_with_test_scenario(14)
+        time.sleep(3)
+        self.terminate_single_process(0)
+        node0_blocks_before = self.extract_committed_blocks_single_process(0)
+        self.start_single_process_with_test_scenario(14, 0)
+        time.sleep(10)
+        self.terminate_processes()
+
+        node0_blocks_after, node1_blocks, node2_blocks = self.extract_committed_blocks()
+
+        node0_blocks = node0_blocks_before + node0_blocks_after
 
         assert len(node0_blocks) == 2
         assert node0_blocks == node1_blocks
