@@ -52,7 +52,8 @@ class Blocktree:
                 self.head_block = block
             elif key == b'counter':
                 self.counter = int(value.decode())
-            else:   # block_id -> block
+            elif key != b's_max_block' and key != b's_prop_block' and key != b's_supp_block':
+                # block_id -> block
                 block_id = int(key.decode())
                 msg = json.loads(value)
                 block = Block.unserialize(msg)
@@ -228,6 +229,8 @@ class Node(ConnectionManager):
                 try_ok = PaxosMessage('TRY_OK', message.request_seq)
                 try_ok.prop_block = self.s_prop_block
                 try_ok.supp_block = self.s_supp_block
+                if try_ok.prop_block is not None:
+                    logging.debug('proposed block = %s', str(try_ok.prop_block.serialize()))
                 self.respond(try_ok, sender)
 
         elif message.msg_type == 'TRY_OK':
@@ -263,6 +266,10 @@ class Node(ConnectionManager):
                 propose = PaxosMessage('PROPOSE', self.c_request_seq)
                 propose.com_block = self.c_com_block
                 propose.new_block = self.c_new_block
+
+                if propose.com_block is not None:
+                    logging.debug('com block = %s', str(propose.com_block.serialize()))
+
                 self.broadcast(propose, 'PROPOSE')
 
         elif message.msg_type == 'PROPOSE':
@@ -283,6 +290,7 @@ class Node(ConnectionManager):
                 # create a PROPOSE_ACK message
                 propose_ack = PaxosMessage('PROPOSE_ACK', message.request_seq)
                 propose_ack.com_block = message.com_block
+
                 self.respond(propose_ack, sender)
 
         elif message.msg_type == 'PROPOSE_ACK':
@@ -307,25 +315,6 @@ class Node(ConnectionManager):
 
         elif message.msg_type == 'COMMIT':
             self.commit(message.com_block)
-
-            # reinitialize server variables
-            self.s_supp_block = None
-            self.s_prop_block = None
-            self.s_max_block = GENESIS
-            self.commit_running = False
-
-            # write changes to disk (add s_max_block, s_prop_block and s_supp_block)
-            if self.s_max_block is not None:
-                block_bytes = self.s_max_block.serialize()
-                self.blocktree.db.put(b's_max_block', block_bytes)
-
-            if self.s_prop_block is not None:
-                block_bytes = self.s_prop_block.serialize()
-                self.blocktree.db.put(b's_prop_block', block_bytes)
-
-            if self.s_supp_block is not None:
-                block_bytes = self.s_supp_block.serialize()
-                self.blocktree.db.put(b's_supp_block', block_bytes)
 
     def receive_transaction(self, txn):
         """React on a received `txn` depending on state.
@@ -484,10 +473,9 @@ class Node(ConnectionManager):
         # make sure block is reachable
         if not self.reach_genesis_block(block):
             return
-
+        logging.debug('block to be committed: %s', str(block.serialize()))
         if not self.blocktree.ancestor(block, self.blocktree.committed_block) and \
            block != self.blocktree.committed_block:
-
             last_committed_block = self.blocktree.committed_block
             self.blocktree.committed_block = block
             self.move_to_block(block)
@@ -522,6 +510,17 @@ class Node(ConnectionManager):
 
             # print out ids of all committed blocks so far (-> testing purpose)
             self.committed_blocks_report()
+
+            # reinitialize server variables
+            self.s_supp_block = None
+            self.s_prop_block = None
+            self.s_max_block = GENESIS
+            self.commit_running = False
+
+            # write changes to disk (delete s_max_block, s_prop_block and s_supp_block)
+            self.blocktree.db.delete(b's_max_block')
+            self.blocktree.db.delete(b's_prop_block')
+            self.blocktree.db.delete(b's_supp_block')
 
     def reach_genesis_block(self, block):
         """Check if there is a path from `block` to `GENESIS` block. If a block on the path is not contained in
@@ -578,6 +577,8 @@ class Node(ConnectionManager):
 
         # add state of creator node to block
         b.creator_state = self.state
+
+        logging.debug('created block = %s', str(b.serialize()))
 
         return b
 
