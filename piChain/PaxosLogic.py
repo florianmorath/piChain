@@ -168,8 +168,6 @@ class Node(ConnectionManager):
 
         self.blocktree = Blocktree(node_index)
 
-        self.sync_mode = False  # True if node is looking for a missing block
-
         self.known_txs = set()  # all txs seen so far
         self.new_txs = []  # txs not yet in a block, behaving like a queue
 
@@ -401,11 +399,8 @@ class Node(ConnectionManager):
 
         """
         blocks = resp.blocks
-        if self.sync_mode:
-            for b in blocks:
-                self.blocktree.add_block(b)
-            # sync finished
-            self.sync_mode = False
+        for b in blocks:
+            self.blocktree.add_block(b)
 
     def receive_pong_message(self, message, peer_node_id):
         """Receive PongMessage and update RRT's accordingly.
@@ -541,7 +536,6 @@ class Node(ConnectionManager):
             if self.blocktree.nodes.get(b.parent_block_id) is not None:
                 b = self.blocktree.nodes.get(b.parent_block_id)
             else:
-                self.sync_mode = True
                 req = RequestBlockMessage(b.parent_block_id)
                 self.broadcast(req, 'RQB')
                 return False
