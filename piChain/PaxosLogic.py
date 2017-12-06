@@ -59,6 +59,8 @@ class Blocktree:
                 block = Block.unserialize(msg)
                 self.nodes.update({block_id: block})
 
+        logging.debug('last committed block = %s', str(self.committed_block.serialize()))
+
     def ancestor(self, block_a, block_b):
         """Check if `block_a` is ancestor of `block_b`. Both blocks must be included in `self.nodes`
 

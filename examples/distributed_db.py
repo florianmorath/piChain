@@ -77,7 +77,9 @@ class DatabaseFactory(Factory):
             elif c_list[0] == 'get':
                 key = c_list[1]
                 value = self.db.get(key.encode())
-
+                if value is None:
+                    message = 'key "%s" does not exist' % key
+                    value = message.encode()
                 peer_cmd_list = c_list[2:]
                 peer_cmd = ''
                 for l in peer_cmd_list:
@@ -100,15 +102,6 @@ def main():
 
     # setup node instance
     db_factory = DatabaseFactory(int(node_index))
-
-    # delete level db on disk
-    base_path = os.path.expanduser('~/.pichain/DB')
-    if os.path.exists(base_path):
-        try:
-            shutil.rmtree(base_path)
-        except Exception as e:
-            print(e)
-            raise
 
     # quick node (node index = 0) receives the commands (could be any node)
     if node_index == '0':

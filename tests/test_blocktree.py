@@ -4,10 +4,35 @@ from piChain.PaxosLogic import Blocktree, GENESIS
 from piChain.messages import Block
 
 import logging
+import os
+import shutil
 logging.disable(logging.CRITICAL)
 
 
 class TestBlocktree(TestCase):
+
+    def setUp(self):
+        self.procs = []
+
+        # delete level db on disk
+        base_path = os.path.expanduser('~/.pichain/DB')
+        if os.path.exists(base_path):
+            try:
+                shutil.rmtree(base_path)
+            except Exception as e:
+                print(e)
+                raise
+
+    def tearDown(self):
+
+        # delete level db on disk
+        base_path = os.path.expanduser('~/.pichain/DB')
+        if os.path.exists(base_path):
+            try:
+                shutil.rmtree(base_path)
+            except Exception as e:
+                print(e)
+                raise
 
     def test_ancestor(self):
         # create a blocktree and add blocks to it

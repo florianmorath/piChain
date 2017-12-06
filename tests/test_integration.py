@@ -4,7 +4,6 @@ note: currently the tests only work locally i.e all nodes must have IP address 1
 from twisted.trial.unittest import TestCase
 from subprocess import PIPE, Popen
 from sys import stdout
-from piChain.config import peers
 
 import signal
 import time
@@ -58,7 +57,7 @@ class TestMultiNode(TestCase):
                 raise
 
     def start_processes_with_test_scenario(self, scenario_number):
-        for i in range(len(peers)):
+        for i in range(3):
             self.procs.append(NodeProcess("node %i" % i, str(i), "--test", str(scenario_number)))
 
     def start_single_process_with_test_scenario(self, scenario_number, i):
