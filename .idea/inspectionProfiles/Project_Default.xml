@@ -13,6 +13,7 @@
         <list>
           <option value="twisted.internet.reactor.run" />
           <option value="plyvel.DB" />
+          <option value="twisted.internet.reactor.listenTCP" />
         </list>
       </option>
     </inspection_tool>

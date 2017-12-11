@@ -1,15 +1,19 @@
+"""This module implements a distributed database as an example usage of the pichain package.
+
+note: don't forget to delete ~/.pichain directory before module is used.
+"""
+
 from twisted.internet.protocol import Factory
 from twisted.protocols.basic import LineReceiver
 from twisted.internet import reactor
+from twisted.internet.protocol import connectionDone
 
 from piChain.PaxosLogic import Node
 
 import logging
 import argparse
 import os
-import shutil
 import plyvel
-import jsonpickle
 
 
 class DatabaseProtocol(LineReceiver):
@@ -20,16 +24,26 @@ class DatabaseProtocol(LineReceiver):
     def connectionMade(self):
         self.factory.connections.update({self.transport.getPeer(): self})
 
-    def connectionLost(self, reason):
+    def connectionLost(self, reason=connectionDone):
         self.factory.connections.pop(self.transport.getPeer())
 
     def lineReceived(self, line):
-        command_str = line.decode()
-        peer_str = jsonpickle.encode(self.transport.getPeer())
-        logging.debug(peer_str)
-        txn_command = command_str + ' ' + peer_str
-        logging.debug(txn_command)
-        self.factory.node.make_txn(txn_command)
+        txn_command = line.decode()
+        logging.debug('received command from client: %s', txn_command)
+
+        c_list = txn_command.split()
+        if c_list[0] == 'put' or c_list[0] == 'delete':
+            self.factory.node.make_txn(txn_command)
+
+        elif c_list[0] == 'get':
+            # get command is directly locally executed and will not be committed
+            key = c_list[1]
+            value = self.factory.db.get(key.encode())
+            if value is None:
+                message = 'key "%s" does not exist' % key
+                self.sendLine(message.encode())
+            else:
+                self.sendLine(value)
 
     def rawDataReceived(self, data):
         pass
@@ -74,22 +88,11 @@ class DatabaseFactory(Factory):
                 self.db.put(key.encode(), value.encode())
                 message = 'stored key-value pair = ' + key + ': ' + value
                 self.broadcast(message)
-            elif c_list[0] == 'get':
+            elif c_list[0] == 'delete':
                 key = c_list[1]
-                value = self.db.get(key.encode())
-                if value is None:
-                    message = 'key "%s" does not exist' % key
-                    value = message.encode()
-                peer_cmd_list = c_list[2:]
-                peer_cmd = ''
-                for l in peer_cmd_list:
-                    peer_cmd += l
-                logging.debug(peer_cmd)
-                peer = jsonpickle.decode(peer_cmd)
-                logging.debug(peer)
-                for c in self.connections.values():
-                    if c.transport.getPeer() == peer:
-                        c.sendLine(value)
+                self.db.delete(key.encode())
+                message = 'deleted key = ' + key
+                self.broadcast(message)
 
 
 def main():
@@ -103,7 +106,7 @@ def main():
     # setup node instance
     db_factory = DatabaseFactory(int(node_index))
 
-    # quick node (node index = 0) receives the commands (could be any node)
+    # Any of the nodes may receive commands
     if node_index == '0':
         reactor.listenTCP(8000, db_factory)
     elif node_index == '1':
@@ -116,4 +119,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
