@@ -217,6 +217,15 @@ class Node(ConnectionManager):
             # make sure last commited block of sender is also committed by this node
             self.commit(message.last_committed_block)
 
+            # make sure that message.new_block is descendant of last committed block
+            if not self.reach_genesis_block(message.new_block):
+                # first need to request some missing blocks to be able to decide
+                return
+
+            if not self.blocktree.ancestor(self.blocktree.committed_block, message.new_block):
+                # new_block is not a descendent of last committed block thus we reject it
+                return
+
             if self.s_max_block.depth < message.new_block.depth:
                 self.s_max_block = message.new_block
 
