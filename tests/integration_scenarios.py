@@ -1,6 +1,15 @@
 """This module contains test scenarios that are used as integration "tests" of PaxosLogic and PaxosNetwork.
-All scenarios are based on three running nodes with node id 0,1 and 2. Scenarios 1-6 test the healthy state and
-scenarios 7-11 test each possible unhealthy state the system can be in.
+All scenarios are based on three running nodes with node id 0,1 and 2.
+
+basic behavior:
+- Scenarios 1-6 test the healthy state.
+- Scenarios 7-12 test each possible unhealthy state the system can be in.
+
+crash behavior:
+- Scenarios 20-21 test node crashes.
+
+partition bahavior:
+- Scenarios 30-
 
 note: Can for example use Multirun plugin of pyCharm or write a script to start all nodes at exactly the same time,
 this avoids the problem of initializing the state of the nodes at different times.
@@ -18,6 +27,9 @@ from piChain.config import peers
 
 
 class IntegrationScenarios:
+
+    """ basic behavior:
+    """
 
     @staticmethod
     def scenario1(node):
@@ -324,8 +336,11 @@ class IntegrationScenarios:
             txn3 = Transaction(2, 'command3', 3)
             deferLater(reactor, 4, node.broadcast, txn3, 'TXN')
 
+    """ crash behavior: 
+    """
+
     @staticmethod
-    def scenario13(node):
+    def scenario20(node):
         """TestNode crashes. Crash a slow node after a commit.
 
         Args:
@@ -345,7 +360,7 @@ class IntegrationScenarios:
             deferLater(reactor, 6, node.broadcast, txn2, 'TXN')
 
     @staticmethod
-    def scenario14(node):
+    def scenario21(node):
         """TestNode crashes. Crash the quick node after a commit.
 
         Args:
@@ -363,3 +378,6 @@ class IntegrationScenarios:
             # create another Transaction after crashed node recovered
             txn2 = Transaction(1, 'command2', 2)
             deferLater(reactor, 6, node.broadcast, txn2, 'TXN')
+
+    """ partition behavior: 
+    """
