@@ -609,7 +609,7 @@ class Node(ConnectionManager):
                 self.slow_timeout = patience
             else:
                 patience = self.slow_timeout
-        return patience
+        return patience + 0.1
 
     def timeout_over(self, txn):
         """This function is called once a timeout is over. Will check if in the meantime the node received
