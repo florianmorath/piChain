@@ -59,7 +59,7 @@ class Blocktree:
                 block = Block.unserialize(msg)
                 self.nodes.update({block_id: block})
 
-        logging.debug('last committed block = %s', str(self.committed_block.serialize()))
+        #   logging.debug('last committed block = %s', str(self.committed_block.serialize()))
 
     def ancestor(self, block_a, block_b):
         """Check if `block_a` is ancestor of `block_b`. Both blocks must be included in `self.nodes`
@@ -238,8 +238,8 @@ class Node(ConnectionManager):
                 try_ok = PaxosMessage('TRY_OK', message.request_seq)
                 try_ok.prop_block = self.s_prop_block
                 try_ok.supp_block = self.s_supp_block
-                if try_ok.prop_block is not None:
-                    logging.debug('proposed block = %s', str(try_ok.prop_block.serialize()))
+                # if try_ok.prop_block is not None:
+                #     logging.debug('proposed block = %s', str(try_ok.prop_block.serialize()))
                 self.respond(try_ok, sender)
 
         elif message.msg_type == 'TRY_OK':
@@ -276,8 +276,8 @@ class Node(ConnectionManager):
                 propose.com_block = self.c_com_block
                 propose.new_block = self.c_new_block
 
-                if propose.com_block is not None:
-                    logging.debug('com block = %s', str(propose.com_block.serialize()))
+                # if propose.com_block is not None:
+                #     logging.debug('com block = %s', str(propose.com_block.serialize()))
 
                 self.broadcast(propose, 'PROPOSE')
 

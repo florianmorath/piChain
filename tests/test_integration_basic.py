@@ -15,7 +15,9 @@ class MultiNodeTestBasic(MultiNodeTest):
         time.sleep(3)
         self.terminate_processes()
 
-        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+        node0_blocks = self.extract_committed_blocks_single_process(0)
+        node1_blocks = self.extract_committed_blocks_single_process(1)
+        node2_blocks = self.extract_committed_blocks_single_process(2)
 
         assert len(node0_blocks) == 1
         assert node0_blocks == node1_blocks
@@ -26,7 +28,9 @@ class MultiNodeTestBasic(MultiNodeTest):
         time.sleep(3)
         self.terminate_processes()
 
-        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+        node0_blocks = self.extract_committed_blocks_single_process(0)
+        node1_blocks = self.extract_committed_blocks_single_process(1)
+        node2_blocks = self.extract_committed_blocks_single_process(2)
 
         assert len(node0_blocks) == 1
         assert node0_blocks == node1_blocks
@@ -37,7 +41,9 @@ class MultiNodeTestBasic(MultiNodeTest):
         time.sleep(3)
         self.terminate_processes()
 
-        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+        node0_blocks = self.extract_committed_blocks_single_process(0)
+        node1_blocks = self.extract_committed_blocks_single_process(1)
+        node2_blocks = self.extract_committed_blocks_single_process(2)
 
         assert len(node0_blocks) == 1
         assert node0_blocks == node1_blocks
@@ -48,7 +54,9 @@ class MultiNodeTestBasic(MultiNodeTest):
         time.sleep(4)
         self.terminate_processes()
 
-        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+        node0_blocks = self.extract_committed_blocks_single_process(0)
+        node1_blocks = self.extract_committed_blocks_single_process(1)
+        node2_blocks = self.extract_committed_blocks_single_process(2)
 
         assert len(node0_blocks) == 2
         assert node0_blocks == node1_blocks
@@ -59,7 +67,9 @@ class MultiNodeTestBasic(MultiNodeTest):
         time.sleep(4)
         self.terminate_processes()
 
-        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+        node0_blocks = self.extract_committed_blocks_single_process(0)
+        node1_blocks = self.extract_committed_blocks_single_process(1)
+        node2_blocks = self.extract_committed_blocks_single_process(2)
 
         assert len(node0_blocks) == 3
         assert node0_blocks == node1_blocks
@@ -70,7 +80,9 @@ class MultiNodeTestBasic(MultiNodeTest):
         time.sleep(3)
         self.terminate_processes()
 
-        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+        node0_blocks = self.extract_committed_blocks_single_process(0)
+        node1_blocks = self.extract_committed_blocks_single_process(1)
+        node2_blocks = self.extract_committed_blocks_single_process(2)
 
         assert len(node0_blocks) == 1
         assert node0_blocks == node1_blocks
@@ -81,7 +93,9 @@ class MultiNodeTestBasic(MultiNodeTest):
         time.sleep(3)
         self.terminate_processes()
 
-        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+        node0_blocks = self.extract_committed_blocks_single_process(0)
+        node1_blocks = self.extract_committed_blocks_single_process(1)
+        node2_blocks = self.extract_committed_blocks_single_process(2)
 
         assert len(node0_blocks) == 1
         assert node0_blocks == node1_blocks
@@ -92,7 +106,9 @@ class MultiNodeTestBasic(MultiNodeTest):
         time.sleep(3)
         self.terminate_processes()
 
-        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+        node0_blocks = self.extract_committed_blocks_single_process(0)
+        node1_blocks = self.extract_committed_blocks_single_process(1)
+        node2_blocks = self.extract_committed_blocks_single_process(2)
 
         assert len(node0_blocks) == 1
         assert node0_blocks == node1_blocks
@@ -103,7 +119,9 @@ class MultiNodeTestBasic(MultiNodeTest):
         time.sleep(4)
         self.terminate_processes()
 
-        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+        node0_blocks = self.extract_committed_blocks_single_process(0)
+        node1_blocks = self.extract_committed_blocks_single_process(1)
+        node2_blocks = self.extract_committed_blocks_single_process(2)
 
         assert len(node0_blocks) == 2
         assert node0_blocks == node1_blocks
@@ -114,7 +132,9 @@ class MultiNodeTestBasic(MultiNodeTest):
         time.sleep(3)
         self.terminate_processes()
 
-        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+        node0_blocks = self.extract_committed_blocks_single_process(0)
+        node1_blocks = self.extract_committed_blocks_single_process(1)
+        node2_blocks = self.extract_committed_blocks_single_process(2)
 
         assert len(node0_blocks) == 1
         assert node0_blocks == node1_blocks
@@ -125,7 +145,9 @@ class MultiNodeTestBasic(MultiNodeTest):
         time.sleep(8)
         self.terminate_processes()
 
-        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+        node0_blocks = self.extract_committed_blocks_single_process(0)
+        node1_blocks = self.extract_committed_blocks_single_process(1)
+        node2_blocks = self.extract_committed_blocks_single_process(2)
 
         assert len(node0_blocks) == 3
         assert node0_blocks == node1_blocks
@@ -136,7 +158,9 @@ class MultiNodeTestBasic(MultiNodeTest):
         time.sleep(8)
         self.terminate_processes()
 
-        node0_blocks, node1_blocks, node2_blocks = self.extract_committed_blocks()
+        node0_blocks = self.extract_committed_blocks_single_process(0)
+        node1_blocks = self.extract_committed_blocks_single_process(1)
+        node2_blocks = self.extract_committed_blocks_single_process(2)
 
         assert len(node0_blocks) == 3
         assert node0_blocks == node1_blocks

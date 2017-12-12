@@ -1,5 +1,4 @@
 """This module contains test scenarios that are used as integration "tests" of PaxosLogic and PaxosNetwork.
-All scenarios are based on three running nodes with node id 0,1 and 2.
 
 basic behavior:
 - Scenarios 1-6 test the healthy state.
@@ -24,11 +23,12 @@ from twisted.internet.task import deferLater
 
 from piChain.messages import Transaction
 from piChain.config import peers
+from piChain.PaxosLogic import Node
 
 
 class IntegrationScenarios:
 
-    """ basic behavior:
+    """ basic behavior
     """
 
     @staticmethod
@@ -325,7 +325,6 @@ class IntegrationScenarios:
 
             # create a Transaction and broadcast it
             txn = Transaction(2, 'command1', 1)
-            node.broadcast(txn, 'TXN')
             deferLater(reactor, 0.1, node.broadcast, txn, 'TXN')
 
             # create another Transaction a little bit later and broadcast it
@@ -336,23 +335,22 @@ class IntegrationScenarios:
             txn3 = Transaction(2, 'command3', 3)
             deferLater(reactor, 4, node.broadcast, txn3, 'TXN')
 
-    """ crash behavior: 
+    """ crash behavior 
     """
 
     @staticmethod
     def scenario20(node):
-        """TestNode crashes. Crash a slow node after a commit.
+        """Test Node crashes. Crash a slow node after a commit.
 
         Args:
             node (Node): Node calling this method
 
         """
-        logging.debug('start test scenario 13')
+        logging.debug('start test scenario 20')
         if node.id == 0:
 
             # create a Transaction and broadcast it
             txn = Transaction(0, 'command1', 1)
-            node.broadcast(txn, 'TXN')
             deferLater(reactor, 0.1, node.broadcast, txn, 'TXN')
 
             # create another Transaction after crashed node recovered
@@ -361,23 +359,122 @@ class IntegrationScenarios:
 
     @staticmethod
     def scenario21(node):
-        """TestNode crashes. Crash the quick node after a commit.
+        """Test Node crashes. Crash the quick node after a commit.
 
         Args:
             node (Node): Node calling this method
 
         """
-        logging.debug('start test scenario 14')
+        logging.debug('start test scenario 21')
         if node.id == 1:
 
             # create a Transaction and broadcast it
             txn = Transaction(1, 'command1', 1)
-            node.broadcast(txn, 'TXN')
             deferLater(reactor, 0.1, node.broadcast, txn, 'TXN')
 
             # create another Transaction after crashed node recovered
             txn2 = Transaction(1, 'command2', 2)
             deferLater(reactor, 6, node.broadcast, txn2, 'TXN')
 
-    """ partition behavior: 
+    """ partition behavior 
     """
+
+    @staticmethod
+    def broadcast(self, obj, msg_type):
+        """
+        This method overrides the broadcast method and simulates a partition if 'self.partitioned' is set to True.
+        The partition separates node 4 from node 0-3.
+
+        `obj` will be broadcast to all the peers.
+
+        Args:
+            self: an instance of ConnectionManager
+            obj: an instance of type Message, Block or Transaction
+            msg_type (str): 3 char description of message type
+
+        """
+        if self.id == 4 and self.partitioned:
+            # do not broadcast to other nodes
+            pass
+        else:
+            # do not broadcast to node 4
+
+            logging.debug('broadcast: %s', msg_type)
+            # go over all connections in self.peers and call sendLine on them
+            for k, v in self.peers.items():
+                if k == peers.get('4').get('uuid') and self.partitioned:
+                    pass
+                else:
+                    data = obj.serialize()
+                    v.sendLine(data)
+
+        # if obj is a Transaction then the node also has to send it to itself
+        if msg_type == 'TXN':
+            self.receive_transaction(obj)
+
+    @staticmethod
+    def resolvePartition():
+        Node.partitioned = False
+
+    @staticmethod
+    def scenario30(node):
+        """Test a partition. On the majority site a txn is broadcast which leads in committing a block containing the
+        txn. After the resolution of the partition another transaction is brodcast which leads in committing another
+        block containing the txn. The minority site will learn about the missed commit.
+
+        Args:
+            node (Node): Node calling this method
+
+        """
+        # class patching
+        Node.broadcast = IntegrationScenarios.broadcast
+        Node.partitioned = True
+
+        logging.debug('start test scenario 30')
+
+        # partition will be resolved after given time
+        deferLater(reactor, 2, IntegrationScenarios.resolvePartition)
+
+        if node.id == 2:
+            # create a Transaction and broadcast it
+            txn = Transaction(2, 'command1', 1)
+            deferLater(reactor, 0.1, node.broadcast, txn, 'TXN')
+
+            # create a Transaction and broadcast it
+            txn2 = Transaction(2, 'command2', 2)
+            deferLater(reactor, 4, node.broadcast, txn2, 'TXN')
+
+    @staticmethod
+    def scenario31(node):
+        """Test a partition. Both in the majority site and in the minority site a block is created because of a received
+        transaction. The majority site will commit their block and the minority site will not. After the resolution of
+        the partition, a node in the majority site will broadcast a transaction which results in committing this block.
+        The minority site finds out about the missed commit and will commit the missed block. This results in a change
+        of the head block on the minority site and a broadcast of the transaction on the discarded fork. This broadcast
+        leads to a commit of another block eventually.
+
+        Args:
+            node (Node): Node calling this method
+
+        """
+        # class patching
+        Node.broadcast = IntegrationScenarios.broadcast
+        Node.partitioned = True
+
+        logging.debug('start test scenario 31')
+
+        # partition will be resolved after given time
+        deferLater(reactor, 2, IntegrationScenarios.resolvePartition)
+
+        if node.id == 2:
+            # create a Transaction and broadcast it
+            txn = Transaction(2, 'command1', 1)
+            deferLater(reactor, 0.1, node.broadcast, txn, 'TXN')
+
+            # create a Transaction and broadcast it
+            txn2 = Transaction(2, 'command2', 2)
+            deferLater(reactor, 4, node.broadcast, txn2, 'TXN')
+        elif node.id == 4:
+            # create a Transaction and broadcast it
+            txn3 = Transaction(4, 'command3', 3)
+            deferLater(reactor, 0.1, node.broadcast, txn3, 'TXN')

@@ -19,7 +19,9 @@ class MultiNodeTestCrashes(MultiNodeTest):
         time.sleep(10)
         self.terminate_processes()
 
-        node0_blocks, node1_blocks_after, node2_blocks = self.extract_committed_blocks()
+        node0_blocks = self.extract_committed_blocks_single_process(0)
+        node1_blocks_after = self.extract_committed_blocks_single_process(1)
+        node2_blocks = self.extract_committed_blocks_single_process(2)
 
         node1_blocks = node1_blocks_before + node1_blocks_after
 
@@ -36,7 +38,9 @@ class MultiNodeTestCrashes(MultiNodeTest):
         time.sleep(10)
         self.terminate_processes()
 
-        node0_blocks_after, node1_blocks, node2_blocks = self.extract_committed_blocks()
+        node0_blocks_after = self.extract_committed_blocks_single_process(0)
+        node1_blocks = self.extract_committed_blocks_single_process(1)
+        node2_blocks = self.extract_committed_blocks_single_process(2)
 
         node0_blocks = node0_blocks_before + node0_blocks_after
 

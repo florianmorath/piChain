@@ -5,6 +5,7 @@ note: currently the tests only work locally i.e all nodes must have IP address 1
 from twisted.trial.unittest import TestCase
 from subprocess import PIPE, Popen
 from sys import stdout
+from piChain.config import peers
 
 import signal
 import shutil
@@ -57,7 +58,7 @@ class MultiNodeTest(TestCase):
                 raise
 
     def start_processes_with_test_scenario(self, scenario_number):
-        for i in range(3):
+        for i in range(len(peers)):
             self.procs.append(NodeProcess("node %i" % i, str(i), "--test", str(scenario_number)))
 
     def start_single_process_with_test_scenario(self, scenario_number, i):
@@ -74,50 +75,6 @@ class MultiNodeTest(TestCase):
                 node_proc.proc.terminate()
                 print("====================== stderr =======================")
                 node_proc.shutdown()
-
-    def extract_committed_blocks(self):
-        node0_lines = []
-        node1_lines = []
-        node2_lines = []
-
-        for node_proc in self.procs:
-            if node_proc.name == 'node 0':
-                node0_lines = node_proc.proc.stdout.readlines()
-            elif node_proc.name == 'node 1':
-                node1_lines = node_proc.proc.stdout.readlines()
-            elif node_proc.name == 'node 2':
-                node2_lines = node_proc.proc.stdout.readlines()
-
-        node0_blocks = []
-        node1_blocks = []
-        node2_blocks = []
-
-        print("====================== stdout =======================")
-        print('')
-        print("==========")
-        print('node0:')
-        for line in node0_lines:
-            print(line)
-            if 'block =' in line:
-                node0_blocks.append(line)
-
-        print('')
-        print("==========")
-        print('node1:')
-        for line in node1_lines:
-            print(line)
-            if 'block =' in line:
-                node1_blocks.append(line)
-
-        print('')
-        print("==========")
-        print('node2:')
-        for line in node2_lines:
-            print(line)
-            if 'block =' in line:
-                node2_blocks.append(line)
-
-        return node0_blocks, node1_blocks, node2_blocks
 
     def extract_committed_blocks_single_process(self, i):
         node_lines = []
