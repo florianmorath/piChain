@@ -478,3 +478,46 @@ class IntegrationScenarios:
             # create a Transaction and broadcast it
             txn3 = Transaction(4, 'command3', 3)
             deferLater(reactor, 0.1, node.broadcast, txn3, 'TXN')
+
+    @staticmethod
+    def scenario32(node):
+        """Test a partition.
+
+        Args:
+            node (Node): Node calling this method
+
+        """
+        # class patching
+        Node.broadcast = IntegrationScenarios.broadcast
+        Node.partitioned = True
+
+        logging.debug('start test scenario 32')
+
+        # partition will be resolved after given time
+        deferLater(reactor, 4, IntegrationScenarios.resolvePartition)
+
+        if node.id == 2:
+            # create a Transaction and broadcast it
+            txn = Transaction(2, 'command1', 1)
+            deferLater(reactor, 0.1, node.broadcast, txn, 'TXN')
+
+            # create a Transaction and broadcast it
+            txn2 = Transaction(2, 'command2', 2)
+            deferLater(reactor, 2, node.broadcast, txn2, 'TXN')
+
+            # create a Transaction and broadcast it
+            txn3 = Transaction(2, 'command3', 3)
+            deferLater(reactor, 6, node.broadcast, txn3, 'TXN')
+
+            # create a Transaction and broadcast it
+            txn4 = Transaction(2, 'command4', 4)
+            deferLater(reactor, 8, node.broadcast, txn4, 'TXN')
+
+        elif node.id == 4:
+            # create a Transaction and broadcast it
+            txn5 = Transaction(4, 'command5', 5)
+            deferLater(reactor, 0.1, node.broadcast, txn5, 'TXN')
+
+            # create a Transaction and broadcast it
+            txn6 = Transaction(4, 'command6', 6)
+            deferLater(reactor, 2, node.broadcast, txn6, 'TXN')
