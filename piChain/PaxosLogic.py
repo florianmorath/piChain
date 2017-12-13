@@ -20,6 +20,8 @@ SLOW = 2
 
 EPSILON = 0.001
 
+ACCUMULATION_TIME = 0.1  # time the quick node accumulates txns befor creating a block (0.1 is the default)
+
 GENESIS = Block(-1, None, [], 0)
 GENESIS.depth = 0
 
@@ -609,7 +611,7 @@ class Node(ConnectionManager):
                 self.slow_timeout = patience
             else:
                 patience = self.slow_timeout
-        return patience + 0.1
+        return patience + ACCUMULATION_TIME
 
     def timeout_over(self, txn):
         """This function is called once a timeout is over. Will check if in the meantime the node received

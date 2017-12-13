@@ -1,6 +1,6 @@
 """Integration test: Test basic behavior of paxos nodes in a connected network and no node crashes occuring.
 
-note: currently the tests only work locally i.e all nodes must have IP address 127.0.0.1
+note: currently the tests only work locally and with ACCUMULATION_TIME = 0.1 because of timing reasons.
 """
 
 from tests.util import MultiNodeTest

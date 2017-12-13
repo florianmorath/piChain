@@ -8,12 +8,12 @@ crash behavior:
 - Scenarios 20-21 test node crashes.
 
 partition bahavior:
-- Scenarios 30-
+- Scenarios 30-32 test network partition.
 
 note: Can for example use Multirun plugin of pyCharm or write a script to start all nodes at exactly the same time,
 this avoids the problem of initializing the state of the nodes at different times.
 
-note: currently the tests only work locally
+note: currently the tests only work locally and with ACCUMULATION_TIME = 0.1 because of timing reasons.
 """
 
 import logging
