@@ -36,10 +36,10 @@ class Blocktree:
         self.counter = 0    # gobal counter used for txn_id and block_id
 
         # create a db instance (s.t blocks can be recovered after a crash)
-        base_path = os.path.expanduser('~/.pichain/DB')
-        if not os.path.exists(base_path):
-            os.makedirs(base_path)
+        base_path = os.path.expanduser('~/.pichain')
         path = base_path + '/node_' + str(node_index)
+        if not os.path.exists(path):
+            os.makedirs(path)
         self.db = plyvel.DB(path, create_if_missing=True)
 
         # load blocks and counter (after crash)

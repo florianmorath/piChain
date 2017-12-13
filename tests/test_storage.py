@@ -13,7 +13,7 @@ class TestBlocktree(TestCase):
 
     def setUp(self):
         # delete level db on disk if exists
-        base_path = os.path.expanduser('~/.pichain/DB')
+        base_path = os.path.expanduser('~/.pichain')
         if os.path.exists(base_path):
             try:
                 shutil.rmtree(base_path)
@@ -25,12 +25,12 @@ class TestBlocktree(TestCase):
 
     def tearDown(self):
         if self.bt.db.closed:
-            base_path = os.path.expanduser('~/.pichain/DB')
+            base_path = os.path.expanduser('~/.pichain')
             path = base_path + '/node_0'
             self.bt.db = plyvel.DB(path, create_if_missing=True)
 
         # delete level db on disk
-        base_path = os.path.expanduser('~/.pichain/DB')
+        base_path = os.path.expanduser('~/.pichain')
         if os.path.exists(base_path):
             try:
                 shutil.rmtree(base_path)

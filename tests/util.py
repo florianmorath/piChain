@@ -35,7 +35,7 @@ class MultiNodeTest(TestCase):
         self.procs = []
 
         # delete level db on disk
-        base_path = os.path.expanduser('~/.pichain/DB')
+        base_path = os.path.expanduser('~/.pichain')
         if os.path.exists(base_path):
             try:
                 shutil.rmtree(base_path)
@@ -49,7 +49,7 @@ class MultiNodeTest(TestCase):
             raise Exception("Subprocess failed!")
 
         # delete level db on disk
-        base_path = os.path.expanduser('~/.pichain/DB')
+        base_path = os.path.expanduser('~/.pichain')
         if os.path.exists(base_path):
             try:
                 shutil.rmtree(base_path)
