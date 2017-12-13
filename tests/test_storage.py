@@ -13,7 +13,7 @@ class TestBlocktree(TestCase):
 
     def setUp(self):
         # delete level db on disk if exists
-        base_path = os.path.expanduser('~/.pichain/')
+        base_path = os.path.expanduser('~/.pichain')
         if os.path.exists(base_path):
             try:
                 shutil.rmtree(base_path)
