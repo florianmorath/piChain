@@ -468,7 +468,21 @@ class Node(ConnectionManager):
             block_bytes = self.blocktree.genesis.serialize()
             self.blocktree.db.put(b'genesis', block_bytes)
 
-            # TODO: delete all blocks below the new genesis block
+            # delete inside blocktree.nodes dict
+            parent = self.blocktree.genesis
+            while parent is not None and parent.parent_block_id is not None:
+                parent_block_id = parent.parent_block_id
+                parent = self.blocktree.nodes.pop(parent_block_id)
+
+            # delete on disk
+            parent_block_id = self.blocktree.genesis.parent_block_id
+            parent = self.blocktree.db.get(str(parent_block_id).encode())
+            while parent is not None and parent_block_id is not None:
+                self.blocktree.db.delete(str(parent_block_id).encode())
+                msg = json.loads(parent)
+                block = Block.unserialize(msg)
+                parent = self.blocktree.db.get(str(block.parent_block_id).encode())
+                parent_block_id = block.parent_block_id
 
     def move_to_block(self, target):
         """Change to `target` block as new `head_block`. If `target` is found on a forked path, have to broadcast txs
