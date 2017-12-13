@@ -7,12 +7,23 @@ from piChain.messages import PaxosMessage, Block, Transaction, RequestBlockMessa
 
 import logging
 import time
+import os
+import shutil
 logging.disable(logging.CRITICAL)
 
 
 class TestNode(TestCase):
 
     def setUp(self):
+        # delete pichain folder on disk
+        base_path = os.path.expanduser('~/.pichain')
+        if os.path.exists(base_path):
+            try:
+                shutil.rmtree(base_path)
+            except Exception as e:
+                print(e)
+                raise
+
         self.node = Node(0)
         self.node.blocktree.db = MagicMock()
 

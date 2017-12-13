@@ -2,11 +2,14 @@ from twisted.trial import unittest
 from twisted.test import proto_helpers
 import json
 import time
+import logging
 
 from unittest.mock import MagicMock
 from piChain.PaxosLogic import Node
 from piChain.messages import Transaction, RequestBlockMessage, Block, RespondBlockMessage, PaxosMessage, PongMessage, \
     PingMessage
+
+logging.disable(logging.CRITICAL)
 
 
 class TestConnection(unittest.TestCase):

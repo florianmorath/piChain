@@ -10,7 +10,7 @@ from twisted.internet.task import LoopingCall
 from twisted.python import log
 
 from piChain.messages import RequestBlockMessage, Transaction, Block, RespondBlockMessage, PaxosMessage, PingMessage, \
-    PongMessage
+    PongMessage, AckCommitMessage
 from piChain.config import peers
 
 import logging
@@ -211,6 +211,10 @@ class ConnectionManager(Factory):
         if msg_type == 'TXN':
             self.receive_transaction(obj)
 
+        # if obj is a AckCommitMessage then the node also has to send it to itself
+        if msg_type == 'ACM':
+            self.receive_ack_commit_message(obj)
+
     @staticmethod
     def respond(obj, sender):
         """
@@ -245,6 +249,9 @@ class ConnectionManager(Factory):
         elif msg_type == 'PON':
             obj = PongMessage.unserialize(msg)
             self.receive_pong_message(obj, sender.peer_node_id)
+        elif msg_type == 'ACM':
+            obj = AckCommitMessage.unserialize(msg)
+            self.receive_ack_commit_message(obj)
 
     @staticmethod
     def handle_connection_error(failure, node_id):
@@ -267,6 +274,9 @@ class ConnectionManager(Factory):
         raise NotImplementedError("To be implemented in subclass")
 
     def receive_pong_message(self, message, peer_node_id):
+        raise NotImplementedError("To be implemented in subclass")
+
+    def receive_ack_commit_message(self, message):
         raise NotImplementedError("To be implemented in subclass")
 
     # methods used by the app

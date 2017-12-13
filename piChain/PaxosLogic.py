@@ -8,7 +8,8 @@ import plyvel
 import os
 
 from piChain.PaxosNetwork import ConnectionManager
-from piChain.messages import PaxosMessage, Block, RequestBlockMessage, RespondBlockMessage, Transaction
+from piChain.messages import PaxosMessage, Block, RequestBlockMessage, RespondBlockMessage, Transaction, \
+    AckCommitMessage
 from piChain.config import peers
 from twisted.internet.task import deferLater
 from twisted.internet import reactor
@@ -29,17 +30,19 @@ GENESIS.depth = 0
 class Blocktree:
     """Tree of blocks."""
     def __init__(self, node_index):
+        self.genesis = GENESIS  # the genesis block (adjusted over time to safe memory)
         self.head_block = GENESIS  # deepest block in the block tree (head of the blockchain)
         self.committed_block = GENESIS  # last committed block -> will indirectly define all committed blocks so far
         self.nodes = {}  # dictionary from block_id to instance of type Block
         self.nodes.update({GENESIS.block_id: GENESIS})
         self.counter = 0    # gobal counter used for txn_id and block_id
+        self.ack_commits = {}   # dict from block_id to counter that counts how many times a block has been committed.
 
         # create a db instance (s.t blocks can be recovered after a crash)
-        base_path = os.path.expanduser('~/.pichain/DB')
-        if not os.path.exists(base_path):
-            os.makedirs(base_path)
+        base_path = os.path.expanduser('~/.pichain')
         path = base_path + '/node_' + str(node_index)
+        if not os.path.exists(path):
+            os.makedirs(path)
         self.db = plyvel.DB(path, create_if_missing=True)
 
         # load blocks and counter (after crash)
@@ -54,6 +57,10 @@ class Blocktree:
                 self.head_block = block
             elif key == b'counter':
                 self.counter = int(value.decode())
+            elif key == b'genesis':
+                msg = json.loads(value)
+                block = Block.unserialize(msg)
+                self.genesis = block
             elif key != b's_max_block' and key != b's_prop_block' and key != b's_supp_block':
                 # block_id -> block
                 block_id = int(key.decode())
@@ -92,7 +99,7 @@ class Blocktree:
         Returns:
             Block: common ancestor of `block_a` and `block_b.
         """
-        while (block_a != GENESIS or block_b != GENESIS) and block_a != block_b:
+        while (block_a != self.genesis or block_b != self.genesis) and block_a != block_b:
             if block_a.depth > block_b.depth:
                 block_a = self.nodes.get(block_a.parent_block_id)
             else:
@@ -177,7 +184,7 @@ class Node(ConnectionManager):
         self.oldest_txn = None  # txn which started a timeout
 
         # node acting as server
-        self.s_max_block = GENESIS  # deepest block seen in round 1 (like T_max)
+        self.s_max_block = self.blocktree.genesis  # deepest block seen in round 1 (like T_max)
         self.s_prop_block = None  # stored block from a valid propose message
         self.s_supp_block = None  # block supporting proposed block (like T_store)
 
@@ -392,10 +399,10 @@ class Node(ConnectionManager):
             # add five ancestors to blocks
             b = self.blocktree.nodes.get(req.block_id)
             i = 0
-            while i < 5 and b != GENESIS:
+            while i < 5 and b != self.blocktree.genesis:
                 i = i + 1
                 b = self.blocktree.nodes.get(b.parent_block_id)
-                if b != GENESIS:
+                if b != self.blocktree.genesis:
                     blocks.append(b)
 
             # send blocks back
@@ -429,14 +436,39 @@ class Node(ConnectionManager):
         self.expected_rtt = max(self.rtts.values()) + 0.1
         # logging.debug('overall expected rtt (max) = %s', str(self.expected_rtt))
 
-    # TODO: receive ack_commit_message
-    # check if all nodes acknowledged this block , if yes make it the new genesis block and delete the blocks below
-    # the new genesis block from db and blocktree. Make a field self.genesis in blocktree and load it from db once
-    # created, initially equal GENESIS (adjust all places where GENESIS is used). Also store self.genesis in db once
-    # changed (in this method). Make a dictionary from block_id to number of acks. note: A node may miss acks because
-    # he is down and then once online again, if he commits the missed blocks, the other nodes will perform a genesis
-    # block change while he doesn't. No problem since a temporary inconsistency between genesis blocks does not matter.
-    # (and if it does, could notify each other during a genesis block change)
+    def receive_ack_commit_message(self, message):
+        """Check if all nodes acknowledged this block , if true make it the new genesis block and delete the blocks
+        below the new genesis block from db and blocktree.
+
+        note: A node may miss acks because he is down and then once online again, if he commits the missed blocks, the
+        other nodes will perform a genesis block change while he doesn't. No problem since a temporary inconsistency
+        between genesis blocks does not matter (and if it does, could notify each other during a genesis block change).
+
+        Args:
+            message (AckCommitMessage): Received AckCommitMessage.
+
+        """
+        # update the count how many times the block has been committed
+        block_id = message.block_id
+        old_count = self.blocktree.ack_commits.get(block_id)
+        if old_count is None:
+            self.blocktree.ack_commits.update({block_id: 1})
+        else:
+            new_count = old_count + 1
+            self.blocktree.ack_commits.update({block_id: new_count})
+
+        # check if all nodes have committed this block
+        if self.blocktree.ack_commits.get(block_id) == self.n:
+            logging.debug('perform genesis block change')
+
+            # this block will be the new genesis block
+            self.blocktree.genesis = self.blocktree.nodes.get(block_id)
+
+            # write it to db
+            block_bytes = self.blocktree.genesis.serialize()
+            self.blocktree.db.put(b'genesis', block_bytes)
+
+            # TODO: delete all blocks below the new genesis block
 
     def move_to_block(self, target):
         """Change to `target` block as new `head_block`. If `target` is found on a forked path, have to broadcast txs
@@ -501,7 +533,9 @@ class Node(ConnectionManager):
             block_bytes = block.serialize()
             self.blocktree.db.put(b'committed_block', block_bytes)
 
-            # TODO: broadcast confirmation of committing this block (message type AckCommitMessage)
+            # broadcast confirmation of committing this block
+            acm = AckCommitMessage(block.block_id)
+            self.broadcast(acm, 'ACM')
 
             # iterate over blocks from currently committed block to last committed block
             # need to commit all those blocks (not just currently committed block)
@@ -528,12 +562,12 @@ class Node(ConnectionManager):
                 self.tx_committed(commands)
 
             # print out ids of all committed blocks so far (-> testing purpose)
-            self.committed_blocks_report()
+            # self.committed_blocks_report()
 
             # reinitialize server variables
             self.s_supp_block = None
             self.s_prop_block = None
-            self.s_max_block = GENESIS
+            self.s_max_block = self.blocktree.genesis
             self.commit_running = False
 
             # write changes to disk (delete s_max_block, s_prop_block and s_supp_block)
@@ -554,7 +588,7 @@ class Node(ConnectionManager):
         """
         self.blocktree.add_block(block)
         b = block
-        while b != GENESIS:
+        while b != self.blocktree.genesis:
             if self.blocktree.nodes.get(b.parent_block_id) is not None:
                 b = self.blocktree.nodes.get(b.parent_block_id)
             else:
@@ -669,7 +703,7 @@ class Node(ConnectionManager):
         logging.debug('All committed blocks: ')
         logging.debug('block = %s:', str(b.serialize()))
 
-        while b != GENESIS:
+        while b != self.blocktree.genesis:
             b = self.blocktree.nodes.get(b.parent_block_id)
             logging.debug('block = %s:', str(b.serialize()))
         logging.debug('***********************')

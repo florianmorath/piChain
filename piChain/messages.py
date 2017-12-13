@@ -58,7 +58,21 @@ class RespondBlockMessage:
         rsb = jsonpickle.decode(msg['obj_str'])
         return rsb
 
-# TODO: add AckCommitMessage
+
+class AckCommitMessage:
+    """Is broadcast once a node commits a block."""
+    def __init__(self, block_id):
+        self.block_id = block_id
+
+    def serialize(self):
+        obj_str = jsonpickle.encode(self)
+        s = json.dumps({'msg_type': 'ACM', 'obj_str': obj_str})
+        return s.encode()
+
+    @staticmethod
+    def unserialize(msg):
+        acm = jsonpickle.decode(msg['obj_str'])
+        return acm
 
 
 class Block:
