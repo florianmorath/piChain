@@ -58,6 +58,8 @@ class RespondBlockMessage:
         rsb = jsonpickle.decode(msg['obj_str'])
         return rsb
 
+# TODO: add AckCommitMessage
+
 
 class Block:
 

@@ -429,6 +429,15 @@ class Node(ConnectionManager):
         self.expected_rtt = max(self.rtts.values()) + 0.1
         # logging.debug('overall expected rtt (max) = %s', str(self.expected_rtt))
 
+    # TODO: receive ack_commit_message
+    # check if all nodes acknowledged this block , if yes make it the new genesis block and delete the blocks below
+    # the new genesis block from db and blocktree. Make a field self.genesis in blocktree and load it from db once
+    # created, initially equal GENESIS (adjust all places where GENESIS is used). Also store self.genesis in db once
+    # changed (in this method). Make a dictionary from block_id to number of acks. note: A node may miss acks because
+    # he is down and then once online again, if he commits the missed blocks, the other nodes will perform a genesis
+    # block change while he doesn't. No problem since a temporary inconsistency between genesis blocks does not matter.
+    # (and if it does, could notify each other during a genesis block change)
+
     def move_to_block(self, target):
         """Change to `target` block as new `head_block`. If `target` is found on a forked path, have to broadcast txs
          that wont be on the path from `GENESIS` to new `head_block` anymore.
@@ -491,6 +500,8 @@ class Node(ConnectionManager):
             # write changes to disk (add committed block)
             block_bytes = block.serialize()
             self.blocktree.db.put(b'committed_block', block_bytes)
+
+            # TODO: broadcast confirmation of committing this block (message type AckCommitMessage)
 
             # iterate over blocks from currently committed block to last committed block
             # need to commit all those blocks (not just currently committed block)
