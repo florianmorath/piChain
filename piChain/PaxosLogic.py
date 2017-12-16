@@ -190,6 +190,7 @@ class Node(ConnectionManager):
         self.c_supp_block = None
 
         self.commit_running = False
+        self.commit_counter = 0     # enumerates the commits, used for commit_timeout
 
         # load server variables (after crash)
         for key, value in self.blocktree.db:
@@ -638,6 +639,10 @@ class Node(ConnectionManager):
                 self.c_prop_block = None
                 self.c_new_block = b
 
+                # set commit_running to False if after expected time needed for commit process still equals True
+                self.commit_counter += 1
+                deferLater(self.reactor, 2*self.expected_rtt + 1, self.commit_timeout, self.commit_counter)
+
                 # create try message
                 try_msg = PaxosMessage('TRY', self.c_request_seq)
                 try_msg.last_committed_block = self.blocktree.committed_block
@@ -650,6 +655,12 @@ class Node(ConnectionManager):
                 self.oldest_txn = self.new_txs[0]
                 # start a new timeout
                 deferLater(self.reactor, self.get_patience(), self.timeout_over, self.new_txs[0])
+
+    def commit_timeout(self, commit_counter):
+        """Is called once a commit should have been finished. If it is still running, it will be 'terminated'. """
+        if self.commit_running and self.commit_counter == commit_counter:
+            self.commit_running = False
+            logging.debug('current commit terminated because did not receive enough acknowlegements')
 
     def committed_blocks_report(self):
         """Print out all ids of committed blocks so far. For testing purpose."""

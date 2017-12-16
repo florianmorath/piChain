@@ -20,7 +20,7 @@ class NodeProcess:
 
     def shutdown(self):
         self.proc.send_signal(signal.SIGINT)
-        self.proc.wait(1)
+        self.proc.wait()
         print('')
         print("==========")
         print("Node process %s terminated with code %i." % (self.name, self.proc.returncode))
