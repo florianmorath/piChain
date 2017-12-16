@@ -136,7 +136,7 @@ class MultiNodeTestBasic(MultiNodeTest):
         node1_blocks = self.extract_committed_blocks_single_process(1)
         node2_blocks = self.extract_committed_blocks_single_process(2)
 
-        assert len(node0_blocks) > 0
+        assert len(node0_blocks) >= 0
         assert node0_blocks == node1_blocks
         assert node2_blocks == node1_blocks
 

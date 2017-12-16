@@ -212,7 +212,7 @@ class Node(ConnectionManager):
 
         Args:
             message (PaxosMessage): Message received.
-            sender (Connection): Connection instance of the sender.
+            sender (Connection): Connection instance of the sender (None if sender is this Node).
 
         """
         logging.debug('message type = %s', message.msg_type)
@@ -243,7 +243,10 @@ class Node(ConnectionManager):
                 try_ok.supp_block = self.s_supp_block
                 # if try_ok.prop_block is not None:
                 #     logging.debug('proposed block = %s', str(try_ok.prop_block.serialize()))
-                self.respond(try_ok, sender)
+                if sender is not None:
+                    self.respond(try_ok, sender)
+                else:
+                    self.receive_paxos_message(try_ok, None)
 
         elif message.msg_type == 'TRY_OK':
             # check if message is not outdated
@@ -303,7 +306,10 @@ class Node(ConnectionManager):
                 propose_ack = PaxosMessage('PROPOSE_ACK', message.request_seq)
                 propose_ack.com_block = message.com_block
 
-                self.respond(propose_ack, sender)
+                if sender is not None:
+                    self.respond(propose_ack, sender)
+                else:
+                    self.receive_paxos_message(propose_ack, None)
 
         elif message.msg_type == 'PROPOSE_ACK':
             # check if message is not outdated
