@@ -215,6 +215,10 @@ class ConnectionManager(Factory):
         if msg_type == 'ACM':
             self.receive_ack_commit_message(obj)
 
+        # if obj is a PaxosMessage then the node also has to send it to itself
+        if msg_type == 'TRY' or msg_type == 'PROPOSE' or msg_type == 'COMMIT':
+            self.receive_paxos_message(obj, None)
+
     @staticmethod
     def respond(obj, sender):
         """

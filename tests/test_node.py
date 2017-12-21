@@ -38,7 +38,7 @@ class TestNode(TestCase):
 
         self.node.respond = MagicMock()
 
-        self.node.receive_paxos_message(try_msg, None)
+        self.node.receive_paxos_message(try_msg, 1)
         assert self.node.respond.called
         assert self.node.s_max_block == b
 
@@ -114,7 +114,7 @@ class TestNode(TestCase):
         propose.com_block = GENESIS
 
         self.node.respond = MagicMock()
-        self.node.receive_paxos_message(propose, None)
+        self.node.receive_paxos_message(propose, 1)
 
         assert self.node.respond.called
         assert self.node.s_prop_block == propose.com_block
@@ -276,7 +276,11 @@ class TestNode(TestCase):
         self.node.new_txs = [txn]
         self.node.broadcast = MagicMock()
         self.node.state = 0
+
+        clock = task.Clock()
+        self.node.reactor = clock
         self.node.timeout_over(txn)
+        clock.advance(50)
 
         assert self.node.broadcast.called
         obj = self.node.broadcast.call_args[0][0]
