@@ -82,7 +82,7 @@ class Blocktree:
 
         """
         b = block_b
-        while b.parent_block_id is not None:
+        while b != self.genesis:
             if block_a.block_id == b.parent_block_id:
                 return True
             b = self.nodes.get(b.parent_block_id)
@@ -470,6 +470,7 @@ class Node(ConnectionManager):
 
             # this block will be the new genesis block
             self.blocktree.genesis = self.blocktree.nodes.get(block_id)
+            logging.debug('new genesis block id = %s', str(self.blocktree.genesis.block_id))
 
             # write it to db
             block_bytes = self.blocktree.genesis.serialize()
@@ -479,7 +480,7 @@ class Node(ConnectionManager):
             parent = self.blocktree.genesis
             while parent is not None and parent.parent_block_id is not None:
                 parent_block_id = parent.parent_block_id
-                parent = self.blocktree.nodes.pop(parent_block_id)
+                parent = self.blocktree.nodes.pop(parent_block_id, None)
 
             # delete on disk
             parent_block_id = self.blocktree.genesis.parent_block_id
