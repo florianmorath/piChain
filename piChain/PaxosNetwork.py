@@ -16,6 +16,7 @@ from piChain.config import peers
 import logging
 import json
 import time
+import sys
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -41,6 +42,9 @@ class Connection(LineReceiver):
         self.node_id = self.connection_manager.node_id
         self.peer_node_id = None
         self.lc_ping = LoopingCall(self.send_ping)
+
+        # init max message size to 5 Megabyte
+        self.MAX_LENGTH = 5000000
 
     def connectionMade(self):
         logging.info('Connected to %s.', str(self.transport.getPeer()))
@@ -202,6 +206,7 @@ class ConnectionManager(Factory):
 
         """
         logging.debug('broadcast: %s', msg_type)
+        logging.debug('size = %s', str(sys.getsizeof(obj.serialize())))
         # go over all connections in self.peers and call sendLine on them
         for k, v in self.peers.items():
             data = obj.serialize()
@@ -230,6 +235,7 @@ class ConnectionManager(Factory):
         """
         logging.info('respond')
         data = obj.serialize()
+        logging.debug('size = %s', str(sys.getsizeof(data)))
         sender.sendLine(data)
 
     def parse_msg(self, msg_type, msg, sender):

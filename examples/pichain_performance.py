@@ -6,7 +6,7 @@ from twisted.internet.task import deferLater
 import time
 
 
-TXN_MAX_COUNT = 500
+TXN_MAX_COUNT = 4000
 txn_count = 0
 started = False
 start_time = None
@@ -21,23 +21,27 @@ class Connection(LineReceiver):
         global txn_count
 
         print(line.decode())
-        if not started:
-            start_time = time.time()
 
         txn_count += 1
         if txn_count == TXN_MAX_COUNT:
             end_time = time.time()
-            elapsed_time = end_time - start_time
+            elapsed_time = round(end_time - start_time, 3)
             print('elapsed time = %s' % str(elapsed_time))
 
     def rawDataReceived(self, data):
         pass
 
     def connectionMade(self):
+        global started
+        global start_time
+
+        if not started:
+            start_time = time.time()
+            started = True
 
         for i in range(0, TXN_MAX_COUNT):
             msg = 'put k%s v' % str(i)
-            deferLater(reactor, i/100, self.sendLine, msg.encode())
+            deferLater(reactor, i/1000, self.sendLine, msg.encode())
 
 
 class ClientFactory(ReconnectingClientFactory):
