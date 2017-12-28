@@ -64,7 +64,7 @@ class Block:
     def __init__(self, creator_id, parent_block_id, txs, counter):
         self.creator_id = creator_id
         self.SEQ = counter
-        self.block_id = int(str(self.creator_id) + str(self.SEQ))  # (creator_id || SEQ)
+        self.block_id = self.creator_id | (self.SEQ << 16)
         self.creator_state = None
         self.parent_block_id = parent_block_id  # parent block id
         self.txs = txs  # list of transactions of type Transaction
@@ -101,7 +101,7 @@ class Transaction:
     def __init__(self, creator_id, content, counter):
         self.creator_id = creator_id
         self.SEQ = counter
-        self.txn_id = int(str(self.creator_id) + str(self.SEQ))
+        self.txn_id = self.creator_id | (self.SEQ << 16)
         self.content = content  # a string which can represent a command for example
 
     def __eq__(self, other):
