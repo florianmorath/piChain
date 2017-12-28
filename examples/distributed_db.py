@@ -23,9 +23,11 @@ class DatabaseProtocol(LineReceiver):
 
     def connectionMade(self):
         self.factory.connections.update({self.transport.getPeer(): self})
+        logging.debug('client connection made')
 
     def connectionLost(self, reason=connectionDone):
         self.factory.connections.pop(self.transport.getPeer())
+        logging.debug('client connection lost')
 
     def lineReceived(self, line):
         txn_command = line.decode()
