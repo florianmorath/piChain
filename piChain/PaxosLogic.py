@@ -491,6 +491,8 @@ class Node(ConnectionManager):
             parent = self.blocktree.db.get(str(parent_block_id).encode())
             while parent is not None and parent_block_id is not None:
                 self.blocktree.db.delete(str(parent_block_id).encode())
+                self.blocktree.db.compact_range()
+
                 msg = json.loads(parent)
                 block = Block.unserialize(msg)
                 parent = self.blocktree.db.get(str(block.parent_block_id).encode())
