@@ -481,6 +481,10 @@ class Node(ConnectionManager):
             while parent is not None and parent.parent_block_id is not None:
                 parent_block_id = parent.parent_block_id
                 parent = self.blocktree.nodes.pop(parent_block_id, None)
+                # also delete txns
+                if parent is not None:
+                    txns_set = set(parent.txs)
+                    self.known_txs -= txns_set
 
             # delete on disk
             parent_block_id = self.blocktree.genesis.parent_block_id
