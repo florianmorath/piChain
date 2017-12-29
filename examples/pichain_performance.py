@@ -5,8 +5,8 @@ from twisted.internet.task import deferLater
 
 import time
 
-
-TXN_MAX_COUNT = 4000
+ITERATIONS = 5
+RPS = 110
 txn_count = 0
 started = False
 start_time = None
@@ -23,7 +23,7 @@ class Connection(LineReceiver):
         print(line.decode())
 
         txn_count += 1
-        if txn_count == TXN_MAX_COUNT:
+        if txn_count == RPS * ITERATIONS:
             end_time = time.time()
             elapsed_time = round(end_time - start_time, 3)
             print('elapsed time = %s' % str(elapsed_time))
@@ -32,6 +32,9 @@ class Connection(LineReceiver):
         pass
 
     def connectionMade(self):
+        self.send_txns()
+
+    def send_txns(self):
         global started
         global start_time
 
@@ -39,9 +42,16 @@ class Connection(LineReceiver):
             start_time = time.time()
             started = True
 
-        for i in range(0, TXN_MAX_COUNT):
-            msg = 'put k%s v' % str(i)
-            deferLater(reactor, i/1000, self.sendLine, msg.encode())
+        for i in range(0, ITERATIONS):
+            deferLater(reactor, i, self.send_batch, i)
+
+    def send_batch(self, i):
+        print('start iteration %s' % str(i))
+        for j in range(0, RPS):
+            msg = 'put k%i_%i v' % (i, j)
+            self.sendLine(msg.encode())
+        print('iteration %s finished' % str(i))
+        print('sleep')
 
 
 class ClientFactory(ReconnectingClientFactory):

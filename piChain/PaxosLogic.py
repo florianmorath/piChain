@@ -6,6 +6,7 @@ import time
 import json
 import plyvel
 import os
+import jsonpickle
 
 from piChain.PaxosNetwork import ConnectionManager
 from piChain.messages import PaxosMessage, Block, RequestBlockMessage, RespondBlockMessage, Transaction, \
@@ -32,7 +33,8 @@ class Blocktree:
     def __init__(self, node_index):
         self.genesis = GENESIS  # the genesis block (adjusted over time to safe memory)
         self.head_block = GENESIS  # deepest block in the block tree (head of the blockchain)
-        self.committed_block = GENESIS  # last committed block -> will indirectly define all committed blocks so far
+        self.committed_block = GENESIS  # last committed block
+        self.committed_blocks = set()   # ids of all committed blocks so far
         self.nodes = {}  # dictionary from block_id to instance of type Block
         self.nodes.update({GENESIS.block_id: GENESIS})
         self.counter = 0    # gobal counter used for txn_id and block_id
@@ -61,6 +63,10 @@ class Blocktree:
                 msg = json.loads(value)
                 block = Block.unserialize(msg)
                 self.genesis = block
+            elif key == b'committed_blocks':
+                block_ids = jsonpickle.decode(value.decode())
+                self.committed_blocks = block_ids
+                logging.debug(self.committed_blocks)
             elif key != b's_max_block' and key != b's_prop_block' and key != b's_supp_block':
                 # block_id -> block
                 block_id = int(key.decode())
@@ -196,8 +202,8 @@ class Node(ConnectionManager):
         self.c_prop_block = None  # propose block with deepest support block the client has seen in round 2
         self.c_supp_block = None
 
-        #self.commit_running = False
-        #self.commit_counter = 0     # enumerates the commits, used for commit_timeout
+        self.commit_running = False
+        self.current_committable_block = None   # block to still be committed
 
         # load server variables (after crash)
         for key, value in self.blocktree.db:
@@ -336,7 +342,7 @@ class Node(ConnectionManager):
                 self.commit(commit.com_block)
 
                 # allow new paxos instance
-                #self.commit_running = False
+                self.commit_running = False
 
         elif message.msg_type == 'COMMIT':
             self.commit(message.com_block)
@@ -582,6 +588,13 @@ class Node(ConnectionManager):
                 # write committed block to stdout (-> testing purpose)
                 print('block = %s:', str(b.serialize()))
 
+                self.blocktree.committed_blocks.add(b.block_id)
+                # write changes to disk
+                block_ids_str = jsonpickle.encode(self.blocktree.committed_blocks)
+                block_ids_bytes = block_ids_str.encode()
+                self.blocktree.db.put(b'committed_blocks', block_ids_bytes)
+                logging.debug(self.blocktree.committed_blocks)
+
                 logging.debug('committing a block: with block id = %s', str(b.block_id))
                 # call callable of app service
                 commands = []
@@ -596,7 +609,7 @@ class Node(ConnectionManager):
             self.s_supp_block = None
             self.s_prop_block = None
             self.s_max_block = self.blocktree.genesis
-            #self.commit_running = False
+            self.commit_running = False
 
             # write changes to disk (delete s_max_block, s_prop_block and s_supp_block)
             self.blocktree.db.delete(b's_max_block')
@@ -700,26 +713,38 @@ class Node(ConnectionManager):
             b = self.create_block()
             self.move_to_block(b)
             self.broadcast(b, 'BLK')
+            self.current_committable_block = b
+            self.start_commit_process()
 
-            #  if quick node then start a new instance of paxos
-            if self.state == QUICK: #and not self.commit_running:
-                logging.debug('start an new instance of paxos')
-                #self.commit_running = True
-                self.c_votes = 0
-                self.c_request_seq += 1
-                self.c_supp_block = None
-                self.c_prop_block = None
-                self.c_new_block = b
+    def start_commit_process(self):
+        """Commit `self.current_committable_block`."""
 
-                # set commit_running to False if after expected time needed for commit process still equals True
-                # self.commit_counter += 1
-                # deferLater(self.reactor, 2*self.expected_rtt, self.commit_timeout, self.commit_counter)
+        if self.current_committable_block.block_id in self.blocktree.committed_blocks:
+            # this block has already been committed
+            return
 
-                # create try message
-                try_msg = PaxosMessage('TRY', self.c_request_seq)
-                try_msg.last_committed_block = self.blocktree.committed_block
-                try_msg.new_block = self.c_new_block
-                self.broadcast(try_msg, 'TRY')
+        #  if quick node then start a new instance of paxos
+        if self.state == QUICK and not self.commit_running:
+            logging.debug('start an new instance of paxos')
+            self.commit_running = True
+            self.c_votes = 0
+            self.c_request_seq += 1
+            self.c_supp_block = None
+            self.c_prop_block = None
+            self.c_new_block = self.current_committable_block
+
+            # set commit_running to False if after expected time needed for commit process still equals True
+            deferLater(self.reactor, 2 * self.expected_rtt + 2, self.commit_timeout, self.c_request_seq)
+
+            # create try message
+            try_msg = PaxosMessage('TRY', self.c_request_seq)
+            try_msg.last_committed_block = self.blocktree.committed_block
+            try_msg.new_block = self.c_new_block
+            self.broadcast(try_msg, 'TRY')
+        elif self.state == QUICK and self.commit_running:
+            # try to commit block later
+            logging.debug('commit is already running, try to commit later')
+            deferLater(self.reactor, 2 * self.expected_rtt + 2, self.start_commit_process)
 
     def readjust_timeout(self):
         """Is called if `new_txs` changed and thus the `oldest_txn` may be removed."""
@@ -728,11 +753,11 @@ class Node(ConnectionManager):
                 # start a new timeout
                 deferLater(self.reactor, self.get_patience(), self.timeout_over, self.new_txs[0])
 
-    # def commit_timeout(self, commit_counter):
-    #     """Is called once a commit should have been finished. If it is still running, it will be 'terminated'. """
-    #     if self.commit_running and self.commit_counter == commit_counter:
-    #         self.commit_running = False
-    #         logging.debug('current commit terminated because did not receive enough acknowlegements')
+    def commit_timeout(self, commit_counter):
+        """Is called once a commit should have been finished. If it is still running, it will be 'terminated'. """
+        if self.commit_running and self.c_request_seq == commit_counter:
+            self.commit_running = False
+            logging.debug('current commit terminated because did not receive enough acknowlegements')
 
     def committed_blocks_report(self):
         """Print out all ids of committed blocks so far. For testing purpose."""

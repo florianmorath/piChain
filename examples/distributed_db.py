@@ -81,7 +81,7 @@ class DatabaseFactory(Factory):
 
         """
         for command in commands:
-            logging.debug('command committed: %s', command)
+            #   logging.debug('command committed: %s', command)
 
             c_list = command.split()
             if c_list[0] == 'put':
