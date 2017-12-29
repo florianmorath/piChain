@@ -23,6 +23,7 @@ SLOW = 2
 EPSILON = 0.001
 
 ACCUMULATION_TIME = 0.1  # time the quick node accumulates txns befor creating a block (0.1 is the default)
+PROCESSING_TIME = 10
 
 GENESIS = Block(-1, None, [], 0)
 GENESIS.depth = 0
@@ -231,19 +232,25 @@ class Node(ConnectionManager):
         logging.debug('message type = %s', message.msg_type)
         if message.msg_type == 'TRY':
             # make sure last commited block of sender is also committed by this node
-            self.commit(message.last_committed_block)
+            last_committed_block = self.get_block(message.last_committed_block)
+            if last_committed_block is None:
+                return
+            self.commit(last_committed_block)
 
             # make sure that message.new_block is descendant of last committed block
-            if not self.reach_genesis_block(message.new_block):
+            new_block = self.get_block(message.new_block)
+            if new_block is None:
+                return
+            if not self.reach_genesis_block(new_block):
                 # first need to request some missing blocks to be able to decide
                 return
 
-            if not self.blocktree.ancestor(self.blocktree.committed_block, message.new_block):
+            if not self.blocktree.ancestor(self.blocktree.committed_block, new_block):
                 # new_block is not a descendent of last committed block thus we reject it
                 return
 
-            if self.s_max_block.depth < message.new_block.depth:
-                self.s_max_block = message.new_block
+            if self.s_max_block.depth < new_block.depth:
+                self.s_max_block = new_block
 
                 # write changes to disk (add s_max_block)
                 if self.s_max_block is not None:
@@ -252,8 +259,10 @@ class Node(ConnectionManager):
 
                 # create a TRY_OK message
                 try_ok = PaxosMessage('TRY_OK', message.request_seq)
-                try_ok.prop_block = self.s_prop_block
-                try_ok.supp_block = self.s_supp_block
+                if self.s_prop_block is not None:
+                    try_ok.prop_block = self.s_prop_block.block_id
+                if self.s_supp_block is not None:
+                    try_ok.supp_block = self.s_supp_block.block_id
                 # if try_ok.prop_block is not None:
                 #     logging.debug('proposed block = %s', str(try_ok.prop_block.serialize()))
                 if sender is not None:
@@ -265,16 +274,21 @@ class Node(ConnectionManager):
             # check if message is not outdated
             if message.request_seq != self.c_request_seq:
                 # outdated message
+                logging.debug('TRY_OK outdated')
                 return
 
             # if TRY_OK message contains a propose block, we will support it, if it is the first received
             # or if its support block is deeper than the one already stored
-            if message.supp_block and self.c_supp_block is None:
-                self.c_supp_block = message.supp_block
-                self.c_prop_block = message.prop_block
-            elif message.supp_block and self.c_supp_block and self.c_supp_block < message.supp_block:
-                self.c_supp_block = message.supp_block
-                self.c_prop_block = message.prop_block
+
+            supp_block = self.get_block(message.supp_block)
+            prop_block = self.get_block(message.prop_block)
+
+            if supp_block and self.c_supp_block is None:
+                self.c_supp_block = supp_block
+                self.c_prop_block = prop_block
+            elif supp_block and self.c_supp_block and self.c_supp_block < supp_block:
+                self.c_supp_block = supp_block
+                self.c_prop_block = prop_block
 
             self.c_votes += 1
             if self.c_votes > self.n / 2:
@@ -292,8 +306,8 @@ class Node(ConnectionManager):
 
                 # create PROPOSE message
                 propose = PaxosMessage('PROPOSE', self.c_request_seq)
-                propose.com_block = self.c_com_block
-                propose.new_block = self.c_new_block
+                propose.com_block = self.c_com_block.block_id
+                propose.new_block = self.c_new_block.block_id
 
                 # if propose.com_block is not None:
                 #     logging.debug('com block = %s', str(propose.com_block.serialize()))
@@ -302,9 +316,15 @@ class Node(ConnectionManager):
 
         elif message.msg_type == 'PROPOSE':
             # if did not receive a try message with a deeper new block in mean time can store proposed block on server
-            if message.new_block.depth == self.s_max_block.depth:
-                self.s_prop_block = message.com_block
-                self.s_supp_block = message.new_block
+            new_block = self.get_block(message.new_block)
+            if new_block is None:
+                return
+            com_block = self.get_block(message.com_block)
+            if com_block is None:
+                return
+            if new_block.depth == self.s_max_block.depth:
+                self.s_prop_block = com_block
+                self.s_supp_block = new_block
 
                 # write changes to disk (add s_prop_block and s_supp_block)
                 if self.s_prop_block is not None:
@@ -336,16 +356,22 @@ class Node(ConnectionManager):
                 self.c_request_seq += 1
 
                 # create commit message
+                com_block = self.get_block(message.com_block)
+                if com_block is None:
+                    return
                 commit = PaxosMessage('COMMIT', self.c_request_seq)
                 commit.com_block = message.com_block
                 self.broadcast(commit, 'COMMIT')
-                self.commit(commit.com_block)
+                self.commit(com_block)
 
                 # allow new paxos instance
                 self.commit_running = False
 
         elif message.msg_type == 'COMMIT':
-            self.commit(message.com_block)
+            com_block = self.get_block(message.com_block)
+            if com_block is None:
+                return
+            self.commit(com_block)
 
     def receive_transaction(self, txn):
         """React on a received `txn` depending on state.
@@ -442,7 +468,7 @@ class Node(ConnectionManager):
 
         """
         rtt = round(time.time() - message.time, 3)  # in seconds
-        # logging.debug('PongMessage received, rtt = %s', str(rtt))
+        logging.debug('PongMessage received, rtt = %s', str(rtt))
 
         # update RTT's
         self.rtts.update({peer_node_id: rtt})
@@ -685,6 +711,7 @@ class Node(ConnectionManager):
         """
         if self.state == QUICK:
             patience = 0
+            return patience + ACCUMULATION_TIME
 
         elif self.state == MEDIUM:
             patience = (1 + EPSILON) * self.expected_rtt
@@ -697,7 +724,7 @@ class Node(ConnectionManager):
                 self.slow_timeout = patience
             else:
                 patience = self.slow_timeout
-        return patience + ACCUMULATION_TIME
+        return patience + ACCUMULATION_TIME + PROCESSING_TIME
 
     def timeout_over(self, txn):
         """This function is called once a timeout is over. Will check if in the meantime the node received
@@ -734,17 +761,17 @@ class Node(ConnectionManager):
             self.c_new_block = self.current_committable_block
 
             # set commit_running to False if after expected time needed for commit process still equals True
-            deferLater(self.reactor, 2 * self.expected_rtt + 2, self.commit_timeout, self.c_request_seq)
+            deferLater(self.reactor, 2 * self.expected_rtt + 4, self.commit_timeout, self.c_request_seq)
 
             # create try message
             try_msg = PaxosMessage('TRY', self.c_request_seq)
-            try_msg.last_committed_block = self.blocktree.committed_block
-            try_msg.new_block = self.c_new_block
+            try_msg.last_committed_block = self.blocktree.committed_block.block_id
+            try_msg.new_block = self.c_new_block.block_id
             self.broadcast(try_msg, 'TRY')
         elif self.state == QUICK and self.commit_running:
             # try to commit block later
             logging.debug('commit is already running, try to commit later')
-            deferLater(self.reactor, 2 * self.expected_rtt + 2, self.start_commit_process)
+            deferLater(self.reactor, 2 * self.expected_rtt + 4, self.start_commit_process)
 
     def readjust_timeout(self):
         """Is called if `new_txs` changed and thus the `oldest_txn` may be removed."""
@@ -758,6 +785,23 @@ class Node(ConnectionManager):
         if self.commit_running and self.c_request_seq == commit_counter:
             self.commit_running = False
             logging.debug('current commit terminated because did not receive enough acknowlegements')
+
+    def get_block(self, block_id):
+        """Get block based on block_id.
+
+        Args:
+            block_id (int): block id of the requested block.
+
+        Returns (Block): requested block. If not stored locally return None.
+
+        """
+        if block_id is None:
+            return None
+        b = self.blocktree.nodes.get(block_id)
+        if b is None:
+            req = RequestBlockMessage(block_id)
+            self.broadcast(req, 'RQB')
+        return b
 
     def committed_blocks_report(self):
         """Print out all ids of committed blocks so far. For testing purpose."""

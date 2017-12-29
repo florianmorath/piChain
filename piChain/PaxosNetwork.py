@@ -207,6 +207,8 @@ class ConnectionManager(Factory):
         """
         logging.debug('broadcast: %s', msg_type)
         logging.debug('size = %s', str(sys.getsizeof(obj.serialize())))
+        logging.debug('time = %s', str(time.time()))
+
         # go over all connections in self.peers and call sendLine on them
         for k, v in self.peers.items():
             data = obj.serialize()
@@ -234,11 +236,14 @@ class ConnectionManager(Factory):
             sender (Connection): The connection between this node and the sender of the message.
         """
         logging.info('respond')
+        logging.debug('time = %s', str(time.time()))
         data = obj.serialize()
         logging.debug('size = %s', str(sys.getsizeof(data)))
         sender.sendLine(data)
 
     def parse_msg(self, msg_type, msg, sender):
+        logging.debug('time = %s', str(time.time()))
+
         if msg_type != 'PON':
             logging.info('parse_msg called with msg_type = %s', msg_type)
         if msg_type == 'RQB':
