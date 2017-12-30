@@ -6,7 +6,7 @@ from twisted.internet.task import deferLater
 import time
 
 ITERATIONS = 5
-RPS = 500
+RPS = 100
 txn_count = 0
 started = False
 start_time = None
@@ -48,10 +48,13 @@ class Connection(LineReceiver):
     def send_batch(self, i):
         print('start iteration %s' % str(i))
         for j in range(0, RPS):
-            msg = 'put k%i_%i v' % (i, j)
-            self.sendLine(msg.encode())
+            deferLater(reactor, j/(RPS*10), self.send_msg, i, j)
         print('iteration %s finished' % str(i))
         print('sleep')
+
+    def send_msg(self, i, j):
+        msg = 'put k%i_%i v' % (i, j)
+        self.sendLine(msg.encode())
 
 
 class ClientFactory(ReconnectingClientFactory):

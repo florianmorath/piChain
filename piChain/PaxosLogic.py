@@ -23,7 +23,6 @@ SLOW = 2
 EPSILON = 0.001
 
 ACCUMULATION_TIME = 0.1  # time the quick node accumulates txns befor creating a block (0.1 is the default)
-PROCESSING_TIME = 10
 
 GENESIS = Block(-1, None, [], 0)
 GENESIS.depth = 0
@@ -202,6 +201,7 @@ class Node(ConnectionManager):
         self.c_votes = 0  # used to check if majority is already reached
         self.c_prop_block = None  # propose block with deepest support block the client has seen in round 2
         self.c_supp_block = None
+        self.c_quick_proposing = False
 
         self.commit_running = False
         self.current_committable_block = None   # block to still be committed
@@ -366,6 +366,7 @@ class Node(ConnectionManager):
 
                 # allow new paxos instance
                 self.commit_running = False
+                self.c_quick_proposing = True
 
         elif message.msg_type == 'COMMIT':
             com_block = self.get_block(message.com_block)
@@ -634,7 +635,7 @@ class Node(ConnectionManager):
             # reinitialize server variables
             self.s_supp_block = None
             self.s_prop_block = None
-            self.s_max_block = self.blocktree.genesis
+            #self.s_max_block = self.blocktree.genesis
             self.commit_running = False
 
             # write changes to disk (delete s_max_block, s_prop_block and s_supp_block)
@@ -711,7 +712,6 @@ class Node(ConnectionManager):
         """
         if self.state == QUICK:
             patience = 0
-            return patience + ACCUMULATION_TIME
 
         elif self.state == MEDIUM:
             patience = (1 + EPSILON) * self.expected_rtt
@@ -724,7 +724,7 @@ class Node(ConnectionManager):
                 self.slow_timeout = patience
             else:
                 patience = self.slow_timeout
-        return patience + ACCUMULATION_TIME + PROCESSING_TIME
+        return patience + ACCUMULATION_TIME
 
     def timeout_over(self, txn):
         """This function is called once a timeout is over. Will check if in the meantime the node received
@@ -758,20 +758,31 @@ class Node(ConnectionManager):
             self.c_request_seq += 1
             self.c_supp_block = None
             self.c_prop_block = None
-            self.c_new_block = self.current_committable_block
 
             # set commit_running to False if after expected time needed for commit process still equals True
-            deferLater(self.reactor, 2 * self.expected_rtt + 4, self.commit_timeout, self.c_request_seq)
+            deferLater(self.reactor, 2 * self.expected_rtt + 2, self.commit_timeout, self.c_request_seq)
 
-            # create try message
-            try_msg = PaxosMessage('TRY', self.c_request_seq)
-            try_msg.last_committed_block = self.blocktree.committed_block.block_id
-            try_msg.new_block = self.c_new_block.block_id
-            self.broadcast(try_msg, 'TRY')
+            if not self.c_quick_proposing:
+                self.c_new_block = self.current_committable_block
+
+                # create try message
+                try_msg = PaxosMessage('TRY', self.c_request_seq)
+                try_msg.last_committed_block = self.blocktree.committed_block.block_id
+                try_msg.new_block = self.c_new_block.block_id
+                self.broadcast(try_msg, 'TRY')
+            else:
+                logging.debug('quick proposing')
+                # create propose message directly
+                propose = PaxosMessage('PROPOSE', self.c_request_seq)
+                propose.com_block = self.current_committable_block.block_id
+                propose.new_block = self.c_new_block.block_id
+                self.broadcast(propose, 'PROPOSE')
+
         elif self.state == QUICK and self.commit_running:
             # try to commit block later
             logging.debug('commit is already running, try to commit later')
-            deferLater(self.reactor, 2 * self.expected_rtt + 4, self.start_commit_process)
+            deferLater(self.reactor, 2 * self.expected_rtt + 2, self.start_commit_process)
+            self.c_quick_proposing = False
 
     def readjust_timeout(self):
         """Is called if `new_txs` changed and thus the `oldest_txn` may be removed."""
@@ -784,6 +795,7 @@ class Node(ConnectionManager):
         """Is called once a commit should have been finished. If it is still running, it will be 'terminated'. """
         if self.commit_running and self.c_request_seq == commit_counter:
             self.commit_running = False
+            self.c_quick_proposing = False
             logging.debug('current commit terminated because did not receive enough acknowlegements')
 
     def get_block(self, block_id):
