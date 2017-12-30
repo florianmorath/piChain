@@ -32,14 +32,14 @@ class Connection(LineReceiver):
     Attributes:
         connection_manager (Factory): The factory that created the connection. It keeps a consistent state
             among connections.
-        node_id (String): Unique predefined uuid of the node on this side of the connection.
-        peer_node_id (String): Unique predefined uuid of the node on the other side of the connection.
+        node_id (str): Unique predefined id of the node on this side of the connection.
+        peer_node_id (str): Unique predefined id of the node on the other side of the connection.
 
     """
 
     def __init__(self, factory):
         self.connection_manager = factory
-        self.node_id = self.connection_manager.node_id
+        self.node_id = str(self.connection_manager.id)
         self.peer_node_id = None
         self.lc_ping = LoopingCall(self.send_ping)
 
@@ -144,17 +144,15 @@ class ConnectionManager(Factory):
     Attributes:
         peers (dict of String: Connection): The key represents the node_id and the value the Connection to the node
             with this node_id.
-        node_id (String): unique identifier of this factory which represents a node (uuid).
+        id (int): unique identifier of this factory which represents a node.
         message_callback (Callable with signature (msg_type, data, sender: Connection)): Received lines are delegated
             to this callback if they are not handled inside Connection itself.
-        id (int): index of this node into list of peers in config.py.
 
     """
     def __init__(self, index):
         self.peers = {}
-        self.node_id = peers.get(str(index)).get('uuid')
-        self.message_callback = self.parse_msg
         self.id = index
+        self.message_callback = self.parse_msg
         self.reconnect_loop = None
 
     def buildProtocol(self, addr):
@@ -176,13 +174,12 @@ class ConnectionManager(Factory):
 
         activated = False
         for index in range(len(peers)):
-            if peers.get(str(index)).get('uuid') != peers.get(node_index).get('uuid') and \
-                            peers.get(str(index)).get('uuid') not in self.peers:
+            if str(index) != node_index and str(index) not in self.peers:
                 activated = True
                 point = TCP4ClientEndpoint(reactor, peers.get(str(index)).get('ip'), peers.get(str(index)).get('port'))
                 d = connectProtocol(point, Connection(self))
                 d.addCallback(self.got_protocol)
-                d.addErrback(self.handle_connection_error, peers.get(str(index)).get('uuid'))
+                d.addErrback(self.handle_connection_error, str(index))
 
         if not activated:
             self.reconnect_loop.stop()
@@ -190,10 +187,10 @@ class ConnectionManager(Factory):
 
     def connections_report(self):
         logging.info('"""""""""""""""""')
-        logging.info('Connections: local node id = %s', self.node_id)
+        logging.info('Connections: local node id = %s', str(self.id))
         for key, value in self.peers.items():
             logging.info('Connection from %s (%s) to %s (%s).',
-                         value.transport.getHost(), self.node_id, value.transport.getPeer(), value.peer_node_id)
+                         value.transport.getHost(), str(self.id), value.transport.getPeer(), value.peer_node_id)
         logging.info('"""""""""""""""""')
 
     def broadcast(self, obj, msg_type):

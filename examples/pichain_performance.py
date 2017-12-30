@@ -6,7 +6,7 @@ from twisted.internet.task import deferLater
 import time
 
 ITERATIONS = 5
-RPS = 200
+RPS = 100
 txn_count = 0
 started = False
 start_time = None
