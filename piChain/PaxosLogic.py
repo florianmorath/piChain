@@ -758,7 +758,7 @@ class Node(ConnectionManager):
             self.c_prop_block = None
 
             # set commit_running to False if after expected time needed for commit process still equals True
-            deferLater(self.reactor, 2 * self.expected_rtt + 2, self.commit_timeout, self.c_request_seq)
+            deferLater(self.reactor, 2 * self.expected_rtt + 1, self.commit_timeout, self.c_request_seq)
 
             if not self.c_quick_proposing:
                 self.c_new_block = self.current_committable_block
@@ -779,7 +779,7 @@ class Node(ConnectionManager):
         elif self.state == QUICK and self.commit_running:
             # try to commit block later
             logging.debug('commit is already running, try to commit later')
-            deferLater(self.reactor, 2 * self.expected_rtt + 2, self.start_commit_process)
+            deferLater(self.reactor, 2 * self.expected_rtt + 1, self.start_commit_process)
             self.c_quick_proposing = False
 
     def readjust_timeout(self):
