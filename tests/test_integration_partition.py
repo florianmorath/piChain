@@ -11,7 +11,7 @@ import time
 class MultiNodeTestPartition(MultiNodeTest):
 
     def test_scenario30_partition(self):
-        self.start_processes_with_test_scenario(30)
+        self.start_processes_with_test_scenario(30, 5)
         time.sleep(8)
         self.terminate_processes()
 
@@ -28,7 +28,7 @@ class MultiNodeTestPartition(MultiNodeTest):
         assert node4_blocks == node1_blocks
 
     def test_scenario31_partition(self):
-        self.start_processes_with_test_scenario(31)
+        self.start_processes_with_test_scenario(31, 5)
         time.sleep(8)
         self.terminate_processes()
 
@@ -45,7 +45,7 @@ class MultiNodeTestPartition(MultiNodeTest):
         assert node4_blocks == node1_blocks
 
     def test_scenario32_partition(self):
-        self.start_processes_with_test_scenario(32)
+        self.start_processes_with_test_scenario(32, 5)
         time.sleep(15)
         self.terminate_processes()
 

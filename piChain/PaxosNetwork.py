@@ -11,7 +11,6 @@ from twisted.python import log
 
 from piChain.messages import RequestBlockMessage, Transaction, Block, RespondBlockMessage, PaxosMessage, PingMessage, \
     PongMessage, AckCommitMessage
-from piChain.config import peers
 
 import logging
 import json
@@ -54,8 +53,8 @@ class Connection(LineReceiver):
                      str(self.transport.getPeer()), self.peer_node_id, reason.getErrorMessage())
 
         # remove peer_node_id from connection_manager.peers
-        if self.peer_node_id is not None and self.peer_node_id in self.connection_manager.peers:
-            self.connection_manager.peers.pop(self.peer_node_id)
+        if self.peer_node_id is not None and self.peer_node_id in self.connection_manager.peers_connection:
+            self.connection_manager.peers_connection.pop(self.peer_node_id)
             if not self.connection_manager.reconnect_loop.running:
                 logging.info('Connection synchronization restart...')
                 self.connection_manager.reconnect_loop.start(10)
@@ -79,8 +78,8 @@ class Connection(LineReceiver):
             peer_node_id = msg['nodeid']
             logging.info('Handshake from %s with peer_node_id = %s ', str(self.transport.getPeer()), peer_node_id)
 
-            if peer_node_id not in self.connection_manager.peers:
-                self.connection_manager.peers.update({peer_node_id: self})
+            if peer_node_id not in self.connection_manager.peers_connection:
+                self.connection_manager.peers_connection.update({peer_node_id: self})
                 self.peer_node_id = peer_node_id
 
                 # start ping loop
@@ -95,8 +94,8 @@ class Connection(LineReceiver):
             peer_node_id = msg['nodeid']
             logging.info('Handshake ACK from %s with peer_node_id = %s ', str(self.transport.getPeer()), peer_node_id)
 
-            if peer_node_id not in self.connection_manager.peers:
-                self.connection_manager.peers.update({peer_node_id: self})
+            if peer_node_id not in self.connection_manager.peers_connection:
+                self.connection_manager.peers_connection.update({peer_node_id: self})
                 self.peer_node_id = peer_node_id
 
                 # start ping loop
@@ -142,18 +141,20 @@ class ConnectionManager(Factory):
     """Keeps a consistent state among multiple `Connection` instances. Represents a node with a unique `node_id`.
 
     Attributes:
-        peers (dict of String: Connection): The key represents the node_id and the value the Connection to the node
+        peers_connection (dict of String: Connection): The key represents the node_id and the value the Connection to the node
             with this node_id.
         id (int): unique identifier of this factory which represents a node.
         message_callback (Callable with signature (msg_type, data, sender: Connection)): Received lines are delegated
             to this callback if they are not handled inside Connection itself.
+        peers (dict): stores the for each node an ip address and port
 
     """
-    def __init__(self, index):
-        self.peers = {}
+    def __init__(self, index, peer_dict):
+        self.peers_connection = {}
         self.id = index
         self.message_callback = self.parse_msg
         self.reconnect_loop = None
+        self.peers = peer_dict
 
     def buildProtocol(self, addr):
         return Connection(self)
@@ -167,16 +168,16 @@ class ConnectionManager(Factory):
         """Connect to other peers if not yet connected to them. Ports, ips and node ids of them are all given/predefined.
 
         Args:
-            node_index (str): index of this node into list of peers in config.py.
+            node_index (str): index of this node into list of peers.
 
         """
         self.connections_report()
 
         activated = False
-        for index in range(len(peers)):
-            if str(index) != node_index and str(index) not in self.peers:
+        for index in range(len(self.peers)):
+            if str(index) != node_index and str(index) not in self.peers_connection:
                 activated = True
-                point = TCP4ClientEndpoint(reactor, peers.get(str(index)).get('ip'), peers.get(str(index)).get('port'))
+                point = TCP4ClientEndpoint(reactor, self.peers.get(str(index)).get('ip'), self.peers.get(str(index)).get('port'))
                 d = connectProtocol(point, Connection(self))
                 d.addCallback(self.got_protocol)
                 d.addErrback(self.handle_connection_error, str(index))
@@ -188,7 +189,7 @@ class ConnectionManager(Factory):
     def connections_report(self):
         logging.info('"""""""""""""""""')
         logging.info('Connections: local node id = %s', str(self.id))
-        for key, value in self.peers.items():
+        for key, value in self.peers_connection.items():
             logging.info('Connection from %s (%s) to %s (%s).',
                          value.transport.getHost(), str(self.id), value.transport.getPeer(), value.peer_node_id)
         logging.info('"""""""""""""""""')
@@ -207,7 +208,7 @@ class ConnectionManager(Factory):
         logging.debug('time = %s', str(time.time()))
 
         # go over all connections in self.peers and call sendLine on them
-        for k, v in self.peers.items():
+        for k, v in self.peers_connection.items():
             data = obj.serialize()
             v.sendLine(data)
 
@@ -298,7 +299,7 @@ class ConnectionManager(Factory):
 
         """
 
-        endpoint = TCP4ServerEndpoint(reactor, peers.get(str(self.id)).get('port'))
+        endpoint = TCP4ServerEndpoint(reactor, self.peers.get(str(self.id)).get('port'))
         d = endpoint.listen(self)
         d.addErrback(log.err)
 

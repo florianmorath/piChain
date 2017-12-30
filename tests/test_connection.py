@@ -18,7 +18,12 @@ class TestConnection(unittest.TestCase):
         """Will be called by unittest before each test method and is used for setup purposes.
 
         """
-        self.node = Node(0)
+        peers = {
+            '0': {'ip': '127.0.0.1', 'port': 7982},
+            '1': {'ip': '127.0.0.1', 'port': 7981},
+            '2': {'ip': '127.0.0.1', 'port': 7980}
+        }
+        self.node = Node(0, peers)
         self.node.blocktree.db = MagicMock()
         self.proto = self.node.buildProtocol(('localhost', 0))
         self.proto.lc_ping = MagicMock()
@@ -31,7 +36,7 @@ class TestConnection(unittest.TestCase):
         """ Test receipt of a handshake message.
 
         """
-        peer_node_id = 'b5564ec6-fd1d-481a-b68b-9b49a0ddd38b'
+        peer_node_id = '0'
         s = json.dumps({'msg_type': 'HEL', 'nodeid': peer_node_id})
         self.proto.lineReceived(s)
 
@@ -45,7 +50,7 @@ class TestConnection(unittest.TestCase):
         """ Test receipt of a handshake acknowledgement message.
 
         """
-        peer_node_id = 'b5564ec6-fd1d-481a-b68b-9b49a0ddd38b'
+        peer_node_id = '0'
         s = json.dumps({'msg_type': 'ACK', 'nodeid': peer_node_id})
         self.proto.lineReceived(s)
 

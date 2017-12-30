@@ -9,32 +9,32 @@ import argparse
 import logging
 
 
-def tx_committed(commands):
-    """Called once a block is committed.
-
-    Args:
-        commands (list): list of commands inside committed block (one per Transaction)
-
-    """
-    # for command in commands:
-    #     logging.debug('command committed: %s', command)
-
-
 def main():
     """
-    Entry point. First starts a server listening on a port given in confg file. Then connect to other peers.
+    Entry point. First starts a server listening on the given port. Then connect to other peers.
 
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("node_index", type=int, help='Index of node in config.py')
+    parser.add_argument("node_index", type=int, help='Index of node')
     parser.add_argument("--test", dest='test_scenario', type=int)
+    parser.add_argument("--clustersize", dest='clustersize', type=int)
 
     args = parser.parse_args()
     node_index = args.node_index
     logging.debug('start node %s', str(node_index))
 
-    node = Node(node_index)
-    node.tx_committed = tx_committed
+    peers = {
+        '0': {'ip': '127.0.0.1', 'port': 7982},
+        '1': {'ip': '127.0.0.1', 'port': 7981},
+        '2': {'ip': '127.0.0.1', 'port': 7980}
+    }
+
+    if args.clustersize is not None:
+        peers = {}
+        for i in range(0, args.clustersize):
+            peers.update({str(i): {'ip': '127.0.0.1', 'port': (7000 + i)}})
+
+    node = Node(node_index, peers)
     node.start_server()
 
     if args.test_scenario is not None:

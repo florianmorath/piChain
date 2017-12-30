@@ -24,7 +24,7 @@ class TestNode(TestCase):
                 print(e)
                 raise
 
-        self.node = Node(0)
+        self.node = Node(0, MagicMock())
         self.node.blocktree.db = MagicMock()
 
     def test_receive_paxos_message_try(self):

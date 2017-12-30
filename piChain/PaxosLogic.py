@@ -11,7 +11,6 @@ import jsonpickle
 from piChain.PaxosNetwork import ConnectionManager
 from piChain.messages import PaxosMessage, Block, RequestBlockMessage, RespondBlockMessage, Transaction, \
     AckCommitMessage
-from piChain.config import peers
 from twisted.internet.task import deferLater
 from twisted.internet import reactor
 
@@ -160,9 +159,9 @@ class Blocktree:
 
 class Node(ConnectionManager):
 
-    def __init__(self, node_index):
+    def __init__(self, node_index, peers_dict):
 
-        super().__init__(node_index)
+        super().__init__(node_index, peers_dict)
 
         self.reactor = reactor  # must be parametrized for testing (default = global reactor)
 
@@ -179,7 +178,7 @@ class Node(ConnectionManager):
         if self.id == 0:
             self.state = QUICK
 
-        self.n = len(peers)  # total number of nodes
+        self.n = len(self.peers)  # total number of nodes
 
         self.blocktree = Blocktree(node_index)
 
@@ -625,7 +624,8 @@ class Node(ConnectionManager):
                 commands = []
                 for txn in b.txs:
                     commands.append(txn.content)
-                self.tx_committed(commands)
+                if self.tx_committed is not None:
+                    self.tx_committed(commands)
 
             # print out ids of all committed blocks so far (-> testing purpose)
             # self.committed_blocks_report()

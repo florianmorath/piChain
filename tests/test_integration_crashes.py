@@ -11,11 +11,11 @@ import time
 class MultiNodeTestCrashes(MultiNodeTest):
 
     def test_scenario20_crash(self):
-        self.start_processes_with_test_scenario(20)
+        self.start_processes_with_test_scenario(20, 3)
         time.sleep(3)
         self.terminate_single_process(1)
         node1_blocks_before = self.extract_committed_blocks_single_process(1)
-        self.start_single_process_with_test_scenario(20, 1)
+        self.start_single_process_with_test_scenario(20, 1, 3)
         time.sleep(10)
         self.terminate_processes()
 
@@ -30,11 +30,11 @@ class MultiNodeTestCrashes(MultiNodeTest):
         assert node2_blocks == node1_blocks
 
     def test_scenario21_crash(self):
-        self.start_processes_with_test_scenario(21)
+        self.start_processes_with_test_scenario(21, 3)
         time.sleep(3)
         self.terminate_single_process(0)
         node0_blocks_before = self.extract_committed_blocks_single_process(0)
-        self.start_single_process_with_test_scenario(21, 0)
+        self.start_single_process_with_test_scenario(21, 0, 3)
         time.sleep(10)
         self.terminate_processes()
 

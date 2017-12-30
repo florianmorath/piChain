@@ -5,7 +5,6 @@ note: currently the tests only work locally i.e all nodes must have IP address 1
 from twisted.trial.unittest import TestCase
 from subprocess import PIPE, Popen
 from sys import stdout
-from piChain.config import peers
 
 import signal
 import shutil
@@ -15,7 +14,7 @@ import os
 class NodeProcess:
     def __init__(self, name, *args):
         self.name = name
-        path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/piChain/main.py'
+        path = os.path.dirname(os.path.abspath(__file__)) + '/main.py'
         self.proc = Popen(["python", path] + list(args), stdout=PIPE, stderr=PIPE, universal_newlines=True)
 
     def shutdown(self):
@@ -57,12 +56,14 @@ class MultiNodeTest(TestCase):
                 print(e)
                 raise
 
-    def start_processes_with_test_scenario(self, scenario_number):
-        for i in range(len(peers)):
-            self.procs.append(NodeProcess("node %i" % i, str(i), "--test", str(scenario_number)))
+    def start_processes_with_test_scenario(self, scenario_number, cluster_size):
+        for i in range(cluster_size):
+            self.procs.append(NodeProcess("node %i" % i, str(i), "--test", str(scenario_number), "--clustersize",
+                                          str(cluster_size)))
 
-    def start_single_process_with_test_scenario(self, scenario_number, i):
-        self.procs.append(NodeProcess("node %i" % i, str(i), "--test", str(scenario_number)))
+    def start_single_process_with_test_scenario(self, scenario_number, i, cluster_size):
+        self.procs.append(NodeProcess("node %i" % i, str(i), "--test", str(scenario_number), "--clustersize",
+                                      str(cluster_size)))
 
     def terminate_processes(self):
         for node_proc in self.procs:

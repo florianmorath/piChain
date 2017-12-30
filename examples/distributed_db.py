@@ -54,7 +54,12 @@ class DatabaseProtocol(LineReceiver):
 class DatabaseFactory(Factory):
     def __init__(self, node_index):
         self.connections = {}
-        self.node = Node(node_index)
+        peers = {
+            '0': {'ip': '127.0.0.1', 'port': 7982},
+            '1': {'ip': '127.0.0.1', 'port': 7981},
+            '2': {'ip': '127.0.0.1', 'port': 7980}
+        }
+        self.node = Node(node_index, peers)
 
         self.node.tx_committed = self.tx_committed
         self.node.start_server()
@@ -101,7 +106,7 @@ def main():
 
     # get node index as an argument
     parser = argparse.ArgumentParser()
-    parser.add_argument("node_index", help='Index of node in config.py')
+    parser.add_argument("node_index", help='Index of node')
     args = parser.parse_args()
     node_index = args.node_index
 
