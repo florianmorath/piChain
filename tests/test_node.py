@@ -41,7 +41,7 @@ class TestNode(TestCase):
 
         self.node.receive_paxos_message(try_msg, 1)
         assert self.node.respond.called
-        assert self.node.s_max_block == b
+        assert self.node.s_max_block_depth == b.depth
 
         # obj = self.node.respond.call_args[0][0]
         # print('try_ok message = ', pprint(vars(obj)))

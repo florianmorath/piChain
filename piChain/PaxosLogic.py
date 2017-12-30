@@ -67,7 +67,7 @@ class Blocktree:
                 block_ids = jsonpickle.decode(value.decode())
                 self.committed_blocks = block_ids
                 logging.debug(self.committed_blocks)
-            elif key != b's_max_block' and key != b's_prop_block' and key != b's_supp_block':
+            elif key != b's_max_block_depth' and key != b's_prop_block' and key != b's_supp_block':
                 # block_id -> block
                 block_id = int(key.decode())
                 msg = json.loads(value)
@@ -190,7 +190,7 @@ class Node(ConnectionManager):
         self.oldest_txn = None  # txn which started a timeout
 
         # node acting as server
-        self.s_max_block = self.blocktree.genesis  # deepest block seen in round 1 (like T_max)
+        self.s_max_block_depth = 0 #self.blocktree.genesis  # deepest block seen in round 1 (like T_max)
         self.s_prop_block = None  # stored block from a valid propose message
         self.s_supp_block = None  # block supporting proposed block (like T_store)
 
@@ -208,10 +208,8 @@ class Node(ConnectionManager):
 
         # load server variables (after crash)
         for key, value in self.blocktree.db:
-            if key == b's_max_block':
-                msg = json.loads(value)
-                block = Block.unserialize(msg)
-                self.s_max_block = block
+            if key == b's_max_block_depth':
+                self.s_max_block_depth = int(value.decode())
             elif key == b's_prop_block':
                 msg = json.loads(value)
                 block = Block.unserialize(msg)
@@ -249,13 +247,11 @@ class Node(ConnectionManager):
                 # new_block is not a descendent of last committed block thus we reject it
                 return
 
-            if self.s_max_block.depth < new_block.depth:
-                self.s_max_block = new_block
+            if self.s_max_block_depth < new_block.depth:
+                self.s_max_block_depth = new_block.depth
 
-                # write changes to disk (add s_max_block)
-                if self.s_max_block is not None:
-                    block_bytes = self.s_max_block.serialize()
-                    self.blocktree.db.put(b's_max_block', block_bytes)
+                # write changes to disk (add s_max_block_depth)
+                self.blocktree.db.put(b's_max_block_depth', str(self.s_max_block_depth).encode())
 
                 # create a TRY_OK message
                 try_ok = PaxosMessage('TRY_OK', message.request_seq)
@@ -322,7 +318,7 @@ class Node(ConnectionManager):
             com_block = self.get_block(message.com_block)
             if com_block is None:
                 return
-            if new_block.depth == self.s_max_block.depth:
+            if new_block.depth == self.s_max_block_depth:
                 self.s_prop_block = com_block
                 self.s_supp_block = new_block
 
@@ -519,6 +515,8 @@ class Node(ConnectionManager):
                     txns_set = set(parent.txs)
                     self.known_txs -= txns_set
 
+            self.blocktree.nodes.update({GENESIS.block_id: GENESIS})
+
             # delete on disk
             parent_block_id = self.blocktree.genesis.parent_block_id
             parent = self.blocktree.db.get(str(parent_block_id).encode())
@@ -635,11 +633,11 @@ class Node(ConnectionManager):
             # reinitialize server variables
             self.s_supp_block = None
             self.s_prop_block = None
-            #self.s_max_block = self.blocktree.genesis
+            self.s_max_block_depth = 0#self.blocktree.genesis
             self.commit_running = False
 
             # write changes to disk (delete s_max_block, s_prop_block and s_supp_block)
-            self.blocktree.db.delete(b's_max_block')
+            self.blocktree.db.delete(b's_max_block_depth')
             self.blocktree.db.delete(b's_prop_block')
             self.blocktree.db.delete(b's_supp_block')
 
@@ -775,7 +773,7 @@ class Node(ConnectionManager):
                 # create propose message directly
                 propose = PaxosMessage('PROPOSE', self.c_request_seq)
                 propose.com_block = self.current_committable_block.block_id
-                propose.new_block = self.c_new_block.block_id
+                propose.new_block = GENESIS.block_id
                 self.broadcast(propose, 'PROPOSE')
 
         elif self.state == QUICK and self.commit_running:
