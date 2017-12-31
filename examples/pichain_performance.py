@@ -1,20 +1,30 @@
-from twisted.internet.protocol import ReconnectingClientFactory
-from twisted.protocols.basic import LineReceiver
-from twisted.internet import reactor
-from twisted.internet.task import deferLater
+"""This module is used to test the performance of the pichain package. It connect to a node instance and sends a
+predefined number of transactions per seconds to see how many RPS (Requests per second) can be handled.
+
+Note: This script requires already running pichain nodes where one node listens on (localhost: 8000) for connections.
+"""
 
 import time
 
+from twisted.internet.protocol import ReconnectingClientFactory
+from twisted.internet import reactor
+from twisted.internet.task import deferLater
+from twisted.protocols.basic import LineReceiver
+
+
+# Number of seconds, the script will send txns
 ITERATIONS = 5
+# Requests per second
 RPS = 100
+# Keeps track of how many transactions have been committed
 txn_count = 0
-started = False
+# Variables used for timing
 start_time = None
 end_time = None
+started = False
 
 
 class Connection(LineReceiver):
-
     def lineReceived(self, line):
         global start_time
         global end_time
@@ -35,6 +45,8 @@ class Connection(LineReceiver):
         self.send_txns()
 
     def send_txns(self):
+        """Called once connection with node has been made. This initiates the process of txns beeing send. It will call
+        each second `send_batch()` which will send a batch of transactions. """
         global started
         global start_time
 
@@ -46,9 +58,10 @@ class Connection(LineReceiver):
             deferLater(reactor, i, self.send_batch, i)
 
     def send_batch(self, i):
+        """Sends a predefined number (= RPS) of transactions as a batch to the node."""
         print('start iteration %s' % str(i))
         for j in range(0, RPS):
-            #deferLater(reactor, j/RPS, self.send_msg, i, j)
+            # deferLater(reactor, j/RPS, self.send_msg, i, j)
             self.send_msg(i, j)
         print('iteration %s finished' % str(i))
         print('sleep')
