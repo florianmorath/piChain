@@ -1,5 +1,5 @@
-"""This module implements the logic of the paxos algorithm.
-It implements the Node class which represents a paxos node and defines how a paxos node should behave.
+"""This module defines the logic of the paxos algorithm.
+It implements the Node class which represents a paxos node and specifies how a paxos node should behave.
 """
 
 import random
@@ -9,12 +9,11 @@ import json
 
 import jsonpickle
 from twisted.internet.task import deferLater
-from twisted.internet import reactor
 
 from piChain.PaxosNetwork import ConnectionManager
+from piChain.blocktree import Blocktree
 from piChain.messages import PaxosMessage, Block, RequestBlockMessage, RespondBlockMessage, Transaction, \
     AckCommitMessage
-from piChain.blocktree import Blocktree
 
 
 # variables representing the state of a node
@@ -24,7 +23,7 @@ SLOW = 2
 
 EPSILON = 0.001
 
-# time the quick node accumulates txns befor creating a block (0.1 is the default)
+# time the quick node accumulates transactions befor creating a block (0.1 is the default)
 ACCUMULATION_TIME = 0.1
 
 # genesis block
@@ -33,52 +32,79 @@ GENESIS.depth = 0
 
 
 class Node(ConnectionManager):
+    """This class represents a paxos node. It is a subclass of the ConnectionManager class defined in the networking
+    module. This allows to directly call functions like broadcast and respond from the networking module and to override
+    the 'receive_...' methods which are called in the networking module based on the type of the message.
 
+    Args:
+        node_index (int): the index of this node into the peers dictionary. The entry defines its ip address and port.
+        peers_dict (dict): a dict containing the (ip, port) pairs for all nodes (see examples folder for its structure).
+
+    Attributes:
+        state (int): 0,1 or 2 corresponds to QUICK, MEDIUM or SLOW.
+        blocktree (Blocktree): The blocktree which this node owns.
+        known_txs (set): all txs seen so far.
+        new_txs (list): txs not yet in a block, behaving like a queue.
+        oldest_txn (Transaction): txn which started a timeout.
+        s_max_block_depth (int):  depth of deepest block seen in round 1 (like T_max).
+        s_prop_block (Block): stored block from a valid propose message.
+        s_supp_block (Block): block supporting proposed block (like T_store).
+        c_new_block (Block): block which client (a quick node) wants to commit next.
+        c_com_block (Block): temporary compromise block.
+        c_request_seq (int): voting round number.
+        c_votes (int): used to check if majority is already reached.
+        c_prop_block (Block): propose block with deepest support block the client has seen in round 2.
+        c_supp_block (Block): support block supporting c_prop_block.
+        c_quick_proposing (bool): a node may skip round 1 if his ticket is still valid.
+        c_commit_running (bool): True if a commit currently running.
+        c_current_committable_block (Block): block to still be committed
+        tx_committed (Callable): method given by app service that is called once a transaction has been committed.
+        rtts (dict): peer_node_id -> RTT. Used to estimate expected round trip time.
+        expected_rtt (float): based on this rtt the timeouts are computed.
+        slow_timeout (float): fix patience of a slow node (u.a.r only set once).
+        n (int): total numberof nodes.
+    """
     def __init__(self, node_index, peers_dict):
 
         super().__init__(node_index, peers_dict)
 
-        self.reactor = reactor  # must be parametrized for testing (default = global reactor)
-
-        self.rtts = {}  # dict: peer_node_id -> RTT
-        self.expected_rtt = 1
-
         self.state = SLOW
-
-        # fields set by app service
-        self.tx_committed = None   # callable defined by app service
-        # self.tx_committed_deferred = None   # deferred defined by app service
 
         # ensure that exactly one node will be QUICK in beginning
         if self.id == 0:
             self.state = QUICK
 
-        self.n = len(self.peers)  # total number of nodes
-
         self.blocktree = Blocktree(node_index)
 
-        self.known_txs = set()  # all txs seen so far
-        self.new_txs = []  # txs not yet in a block, behaving like a queue
-
-        self.slow_timeout = None    # fix timeout of a slow node (u.a.r only once)
-        self.oldest_txn = None  # txn which started a timeout
+        # Transaction variables
+        self.known_txs = set()
+        self.new_txs = []
+        self.oldest_txn = None
 
         # node acting as server
-        self.s_max_block_depth = 0 # self.blocktree.genesis  # deepest block seen in round 1 (like T_max)
-        self.s_prop_block = None  # stored block from a valid propose message
-        self.s_supp_block = None  # block supporting proposed block (like T_store)
+        self.s_max_block_depth = 0
+        self.s_prop_block = None
+        self.s_supp_block = None
 
         # node acting as client
-        self.c_new_block = None  # block which client (a quick node) wants to commit next
-        self.c_com_block = None  # temporary compromise block
-        self.c_request_seq = 0  # Voting round number
-        self.c_votes = 0  # used to check if majority is already reached
-        self.c_prop_block = None  # propose block with deepest support block the client has seen in round 2
+        self.c_new_block = None
+        self.c_com_block = None
+        self.c_request_seq = 0
+        self.c_votes = 0
+        self.c_prop_block = None
         self.c_supp_block = None
         self.c_quick_proposing = False
+        self.c_commit_running = False
+        self.c_current_committable_block = None
 
-        self.commit_running = False
-        self.current_committable_block = None   # block to still be committed
+        self.tx_committed = None
+
+        # timeout/timing variables
+        self.rtts = {}
+        self.expected_rtt = 1
+        self.slow_timeout = None
+
+        self.n = len(self.peers)
 
         # load server variables (after crash)
         for key, value in self.blocktree.db:
@@ -94,12 +120,11 @@ class Node(ConnectionManager):
                 self.s_supp_block = block
 
     def receive_paxos_message(self, message, sender):
-        """React on a received `message`. This method implements the main functionality of the paxos algorithm.
+        """React on a received paxos `message`. This method implements the main functionality of the paxos algorithm.
 
         Args:
             message (PaxosMessage): Message received.
             sender (Connection): Connection instance of the sender (None if sender is this Node).
-
         """
         logging.debug('message type = %s', message.msg_type)
         if message.msg_type == 'TRY':
@@ -133,8 +158,6 @@ class Node(ConnectionManager):
                     try_ok.prop_block = self.s_prop_block.block_id
                 if self.s_supp_block is not None:
                     try_ok.supp_block = self.s_supp_block.block_id
-                # if try_ok.prop_block is not None:
-                #     logging.debug('proposed block = %s', str(try_ok.prop_block.serialize()))
                 if sender is not None:
                     self.respond(try_ok, sender)
                 else:
@@ -147,9 +170,8 @@ class Node(ConnectionManager):
                 logging.debug('TRY_OK outdated')
                 return
 
-            # if TRY_OK message contains a propose block, we will support it, if it is the first received
-            # or if its support block is deeper than the one already stored
-
+            # if TRY_OK message contains a propose block, we will support it if it is the first received
+            # or if its support block is deeper than the one already stored.
             supp_block = self.get_block(message.supp_block)
             prop_block = self.get_block(message.prop_block)
 
@@ -178,9 +200,6 @@ class Node(ConnectionManager):
                 propose = PaxosMessage('PROPOSE', self.c_request_seq)
                 propose.com_block = self.c_com_block.block_id
                 propose.new_block = self.c_new_block.block_id
-
-                # if propose.com_block is not None:
-                #     logging.debug('com block = %s', str(propose.com_block.serialize()))
 
                 self.broadcast(propose, 'PROPOSE')
 
@@ -235,7 +254,7 @@ class Node(ConnectionManager):
                 self.commit(com_block)
 
                 # allow new paxos instance
-                self.commit_running = False
+                self.c_commit_running = False
                 self.c_quick_proposing = True
 
         elif message.msg_type == 'COMMIT':
@@ -249,7 +268,6 @@ class Node(ConnectionManager):
 
         Args:
             txn (Transaction): Transaction received.
-
         """
         # check if txn has already been seen
         if txn not in self.known_txs:
@@ -272,7 +290,6 @@ class Node(ConnectionManager):
 
         Args:
             block (Block): Received block.
-
         """
         # make sure block is reachable
         if not self.reach_genesis_block(block):
@@ -301,7 +318,6 @@ class Node(ConnectionManager):
         Args:
             req (RequestBlockMessage): Message that requests a missing block.
             sender (Connection): Connection instance form the sender.
-
         """
         if self.blocktree.nodes.get(req.block_id) is not None:
             blocks = [self.blocktree.nodes.get(req.block_id)]
@@ -324,7 +340,6 @@ class Node(ConnectionManager):
 
         Args:
             resp (RespondBlockMessage): may contain the missing blocks s.t the node can recover.
-
         """
         blocks = resp.blocks
         for b in blocks:
@@ -344,19 +359,17 @@ class Node(ConnectionManager):
         # update RTT's
         self.rtts.update({peer_node_id: rtt})
         self.expected_rtt = max(self.rtts.values()) + 0.1
-        # logging.debug('overall expected rtt (max) = %s', str(self.expected_rtt))
 
     def receive_ack_commit_message(self, message):
-        """Check if all nodes acknowledged this block , if true make it the new genesis block and delete the blocks
+        """Check if all nodes acknowledged this block, if true make it the new genesis block and delete the blocks
         below the new genesis block from db and blocktree.
 
-        note: A node may miss acks because he is down and then once online again, if he commits the missed blocks, the
+        Note: A node may miss acks because he is down and then once online again, if he commits the missed blocks, the
         other nodes will perform a genesis block change while he doesn't. No problem since a temporary inconsistency
-        between genesis blocks does not matter (and if it does, could notify each other during a genesis block change).
+        between genesis blocks does not matter.
 
         Args:
             message (AckCommitMessage): Received AckCommitMessage.
-
         """
         # update the count how many times the block has been committed
         block_id = message.block_id
@@ -408,8 +421,7 @@ class Node(ConnectionManager):
          that wont be on the path from `GENESIS` to new `head_block` anymore.
 
         Args:
-            target (Block): will be the new `head_block`
-
+            target (Block): will be the new `head_block`.
         """
         # make sure target is reachable
         if not self.reach_genesis_block(target):
@@ -446,7 +458,7 @@ class Node(ConnectionManager):
             self.readjust_timeout()
 
     def commit(self, block):
-        """Commit `block`
+        """Commit `block`.
 
         Args:
             block (Block): Block to be committed.
@@ -502,14 +514,11 @@ class Node(ConnectionManager):
                 if self.tx_committed is not None:
                     self.tx_committed(commands)
 
-            # print out ids of all committed blocks so far (-> testing purpose)
-            # self.committed_blocks_report()
-
             # reinitialize server variables
             self.s_supp_block = None
             self.s_prop_block = None
-            self.s_max_block_depth = 0#self.blocktree.genesis
-            self.commit_running = False
+            self.s_max_block_depth = 0  # self.blocktree.genesis
+            self.c_commit_running = False
 
             # write changes to disk (delete s_max_block, s_prop_block and s_supp_block)
             self.blocktree.db.delete(b's_max_block_depth')
@@ -580,7 +589,7 @@ class Node(ConnectionManager):
         Corresponds to the nodes eagerness to create a new block.
 
         Returns:
-            int: time node has to wait
+            int: time node has to wait.
 
         """
         if self.state == QUICK:
@@ -604,7 +613,7 @@ class Node(ConnectionManager):
         the `txn`. If not it is allowed to ceate a new block and broadcast it.
 
         Args:
-            txn (Transaction): This txn triggered the timeout
+            txn (Transaction): This transaction triggered the timeout.
 
         """
         logging.debug('timeout_over called')
@@ -613,20 +622,20 @@ class Node(ConnectionManager):
             b = self.create_block()
             self.move_to_block(b)
             self.broadcast(b, 'BLK')
-            self.current_committable_block = b
+            self.c_current_committable_block = b
             self.start_commit_process()
 
     def start_commit_process(self):
         """Commit `self.current_committable_block`."""
 
-        if self.current_committable_block.block_id in self.blocktree.committed_blocks:
+        if self.c_current_committable_block.block_id in self.blocktree.committed_blocks:
             # this block has already been committed
             return
 
         #  if quick node then start a new instance of paxos
-        if self.state == QUICK and not self.commit_running:
+        if self.state == QUICK and not self.c_commit_running:
             logging.debug('start an new instance of paxos')
-            self.commit_running = True
+            self.c_commit_running = True
             self.c_votes = 0
             self.c_request_seq += 1
             self.c_supp_block = None
@@ -636,7 +645,7 @@ class Node(ConnectionManager):
             deferLater(self.reactor, 2 * self.expected_rtt + 1, self.commit_timeout, self.c_request_seq)
 
             if not self.c_quick_proposing:
-                self.c_new_block = self.current_committable_block
+                self.c_new_block = self.c_current_committable_block
 
                 # create try message
                 try_msg = PaxosMessage('TRY', self.c_request_seq)
@@ -647,11 +656,11 @@ class Node(ConnectionManager):
                 logging.debug('quick proposing')
                 # create propose message directly
                 propose = PaxosMessage('PROPOSE', self.c_request_seq)
-                propose.com_block = self.current_committable_block.block_id
+                propose.com_block = self.c_current_committable_block.block_id
                 propose.new_block = GENESIS.block_id
                 self.broadcast(propose, 'PROPOSE')
 
-        elif self.state == QUICK and self.commit_running:
+        elif self.state == QUICK and self.c_commit_running:
             # try to commit block later
             logging.debug('commit is already running, try to commit later')
             deferLater(self.reactor, 2 * self.expected_rtt + 1, self.start_commit_process)
@@ -666,8 +675,8 @@ class Node(ConnectionManager):
 
     def commit_timeout(self, commit_counter):
         """Is called once a commit should have been finished. If it is still running, it will be 'terminated'. """
-        if self.commit_running and self.c_request_seq == commit_counter:
-            self.commit_running = False
+        if self.c_commit_running and self.c_request_seq == commit_counter:
+            self.c_commit_running = False
             self.c_quick_proposing = False
             logging.debug('current commit terminated because did not receive enough acknowlegements')
 
@@ -688,28 +697,14 @@ class Node(ConnectionManager):
             self.broadcast(req, 'RQB')
         return b
 
-    def committed_blocks_report(self):
-        """Print out all ids of committed blocks so far. For testing purpose."""
-        b = self.blocktree.committed_block
-        logging.debug('***********************')
-        logging.debug('All committed blocks: ')
-        logging.debug('block = %s:', str(b.serialize()))
-
-        while b != self.blocktree.genesis:
-            b = self.blocktree.nodes.get(b.parent_block_id)
-            logging.debug('block = %s:', str(b.serialize()))
-        logging.debug('***********************')
-
-    # methods used by the app
+    # methods used by the app (part of external interface)
 
     def make_txn(self, command):
         """This method is called by the app with the command to be committed.
 
         Args:
             command (str): command to be commited
-
         """
-
         self.blocktree.counter += 1
         txn = Transaction(self.id, command, self.blocktree.counter)
         self.blocktree.db.put(b'counter', str(self.blocktree.counter).encode())

@@ -44,7 +44,8 @@ class PaxosMessage:
         Args:
             msg (json formatted str): PaxosMessage represented as a json formatted str.
 
-        Returns (PaxosMessage): original PaxosMessage instance.
+        Returns:
+             PaxosMessage: original PaxosMessage instance.
         """
         pam = jsonpickle.decode(msg['obj_str'])
         return pam
@@ -115,7 +116,7 @@ class Block:
 
     Args:
         creator_id (int): id of the node that created the block.
-        parent_block_id (int): id of parent block.
+        parent_block_id (Optional[int]): id of parent block.
         txs (list): list of Transaction instances.
         counter (int): used to define unqiue sequence number.
 

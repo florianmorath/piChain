@@ -147,6 +147,8 @@ class ConnectionManager(Factory):
         message_callback (Callable with signature (msg_type, data, sender: Connection)): Received lines are delegated
             to this callback if they are not handled inside Connection itself.
         peers (dict): stores the for each node an ip address and port
+        reactor (IReactor): The Twisted reactor event loop waits on and demultiplexes events and dispatches them to
+        waiting event handlers. Must be parametrized for testing purpose (default = global reactor).
 
     """
     def __init__(self, index, peer_dict):
@@ -155,6 +157,7 @@ class ConnectionManager(Factory):
         self.message_callback = self.parse_msg
         self.reconnect_loop = None
         self.peers = peer_dict
+        self.reactor = reactor
 
     def buildProtocol(self, addr):
         return Connection(self)

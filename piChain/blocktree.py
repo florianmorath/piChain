@@ -1,5 +1,6 @@
-"""This module implements the Blocktree class which represents a tree of blocks and keeps track of it."""
-
+"""This module implements the Blocktree class which represents a tree of blocks. It keeps track of special blocks like
+ the last committed block and the head block of the tree. It provides operations like adding blocks, checking
+ for the validity of a new block and checking if a block is an ancestor of another one."""
 
 import logging
 import json
@@ -10,23 +11,35 @@ import plyvel
 
 from piChain.messages import Block
 
-
 # genesis block
 GENESIS = Block(-1, None, [], 0)
 GENESIS.depth = 0
 
 
 class Blocktree:
-    """Tree of blocks."""
+    """Tree of blocks.
+
+    Args:
+          node_index (int): index of node owning this blocktree (to avoid concurrency problems with mult. local nodes).
+
+    Attributes:
+        genesis (Block): the genesis block (adjusted over time to safe memory).
+        head_block (Block): deepest block in the blocktree (head of the blockchain).
+        committed_block (Block): last committed block.
+        committed_blocks (set): ids of all committed blocks so far.
+        nodes (dict): dictionary from block_id to instance of type Block. Contains all blocks seen so far.
+        counter (int): gobal counter used for txn_id and block_id
+        ack_commits (dict): dict from block_id to int that counts how many times a block has been committed.
+    """
     def __init__(self, node_index):
-        self.genesis = GENESIS  # the genesis block (adjusted over time to safe memory)
-        self.head_block = GENESIS  # deepest block in the block tree (head of the blockchain)
-        self.committed_block = GENESIS  # last committed block
-        self.committed_blocks = set()   # ids of all committed blocks so far
-        self.nodes = {}  # dictionary from block_id to instance of type Block
+        self.genesis = GENESIS
+        self.head_block = GENESIS
+        self.committed_block = GENESIS
+        self.committed_blocks = set()
+        self.nodes = {}
         self.nodes.update({GENESIS.block_id: GENESIS})
-        self.counter = 0    # gobal counter used for txn_id and block_id
-        self.ack_commits = {}   # dict from block_id to counter that counts how many times a block has been committed.
+        self.counter = 0
+        self.ack_commits = {}
 
         # create a db instance (s.t blocks can be recovered after a crash)
         base_path = os.path.expanduser('~/.pichain')
@@ -62,17 +75,15 @@ class Blocktree:
                 block = Block.unserialize(msg)
                 self.nodes.update({block_id: block})
 
-        #   logging.debug('last committed block = %s', str(self.committed_block.serialize()))
-
     def ancestor(self, block_a, block_b):
-        """Check if `block_a` is ancestor of `block_b`. Both blocks must be included in `self.nodes`
+        """Check if `block_a` is ancestor of `block_b`. Both blocks must be included in `self.nodes`.
 
         Args:
-            block_a (Block): First block
-            block_b (Block: Second block
+            block_a (Block): First block.
+            block_b (Block: Second block.
 
         Returns:
-            bool: True if `block_a` is ancestor of `block_b
+            bool: True if `block_a` is ancestor of `block_b.
 
         """
         b = block_b
@@ -80,15 +91,14 @@ class Blocktree:
             if block_a.block_id == b.parent_block_id:
                 return True
             b = self.nodes.get(b.parent_block_id)
-
         return False
 
     def common_ancestor(self, block_a, block_b):
         """Return common ancestor of `block_a` and `block_b`.
 
         Args:
-            block_a (Block):
-            block_b (Block):
+            block_a (Block): First block.
+            block_b (Block): Second block.
 
         Returns:
             Block: common ancestor of `block_a` and `block_b.
@@ -98,12 +108,11 @@ class Blocktree:
                 block_a = self.nodes.get(block_a.parent_block_id)
             else:
                 block_b = self.nodes.get(block_b.parent_block_id)
-
         return block_a
 
     def valid_block(self, block):
-        """Reject `block` if on a discarded fork (i.e `self.commited_block` is not ancestor of it)
-         or not deeper than head_block.
+        """Reject the `block` argument if it is on a discarded fork (i.e `self.commited_block` is not ancestor of it) or
+        if it is not deeper than the `head_block`.
 
         Args:
             block (Block): Block to be tested for validity.
@@ -125,8 +134,8 @@ class Blocktree:
     def add_block(self, block):
         """Add `block` to `self.nodes`.
 
-        Note: Every node has a depth once created, but to facilitate testing
-        depth of a block is computed based on its parent if available.
+        Note: Every node has a depth once created, but to facilitate testing depth of a block is computed based on its
+        parent if available.
 
         Args:
             block (Block): Block to be added.
