@@ -1,6 +1,6 @@
 from unittest import TestCase
 from unittest.mock import MagicMock
-from piChain.PaxosLogic import Blocktree, GENESIS
+from piChain.blocktree import Blocktree, GENESIS
 from piChain.messages import Block
 
 import logging

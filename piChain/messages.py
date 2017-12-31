@@ -224,7 +224,7 @@ class PongMessage:
         time (float): timestamp that was received in the PingMessage.
     """
     def __init__(self, time):
-        self.time = time  
+        self.time = time
 
     def serialize(self):
         obj_str = jsonpickle.encode(self)
