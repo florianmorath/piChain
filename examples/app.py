@@ -1,30 +1,33 @@
 """This module shows how the pichain package can be used."""
 
-from piChain.PaxosLogic import Node
-from twisted.internet import reactor
-from twisted.internet.task import deferLater
-
 import logging
 import argparse
 
+from twisted.internet import reactor
+from twisted.internet.task import deferLater
+
+from piChain.PaxosLogic import Node
+
 
 def tx_committed(commands):
-    """Called once a block is committed.
+    """Called once a block has been committed.
 
     Args:
-        commands (list): list of commands inside committed block (one per Transaction)
-
+        commands (list): List of Transaction commands inside committed block.
     """
     for command in commands:
         logging.debug('command committed: %s', command)
 
 
 def main():
-
+    """Setup of a Node instance: A peers dictionary containing an (ip,port) pair for each node must be defined. With
+    the `node_index` argument one can select the node that will run locally. Optionally one can set the `tx_committed`
+    field of the Node instance which is a callable that is called once a block has been committed. By calling
+    `start_server()` on the Node instance the local node will try to connect to its peers. Transactions can be committed
+    by calling `make_txn(txn)` on the Node instance.
+    """
     parser = argparse.ArgumentParser()
-
-    # start server
-    parser.add_argument("node_index", help='Index of node')
+    parser.add_argument("node_index", help='Index of node in the given peers dict.')
     args = parser.parse_args()
     node_index = args.node_index
 
