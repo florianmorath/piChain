@@ -1,17 +1,25 @@
-"""Integration test module. Can be subclassed by concrete TestCase classes.
-note: currently the tests only work locally i.e all nodes must have IP address 127.0.0.1
+"""Integration test utility module. Consist of helper methods and classes that can be used by all integration test
+classes.
 """
-
-from twisted.trial.unittest import TestCase
-from subprocess import PIPE, Popen
-from sys import stdout
 
 import signal
 import shutil
 import os
+from sys import stdout
+from subprocess import PIPE, Popen
+
+from twisted.trial.unittest import TestCase
 
 
 class NodeProcess:
+    """
+    Args:
+        name (str): name of the node e.g node 1.
+        args (str): positional arguments used as arguments to the main.py script.
+
+    Attributes:
+        proc (POpen): instance of POpen class representing a process.
+    """
     def __init__(self, name, *args):
         self.name = name
         path = os.path.dirname(os.path.abspath(__file__)) + '/main.py'
@@ -23,12 +31,12 @@ class NodeProcess:
         print('')
         print("==========")
         print("Node process %s terminated with code %i." % (self.name, self.proc.returncode))
-
         stdout.write(self.proc.stderr.read())
         return self.proc.returncode
 
 
 class MultiNodeTest(TestCase):
+    """Can be subclassed by concrete TestCase classes."""
 
     def setUp(self):
         self.procs = []
@@ -57,11 +65,22 @@ class MultiNodeTest(TestCase):
                 raise
 
     def start_processes_with_test_scenario(self, scenario_number, cluster_size):
+        """
+        Args:
+            scenario_number (int): the scenario to be executed inside the integration_scenarios.py module.
+            cluster_size (int): number of nodes used in the test scenario.
+        """
         for i in range(cluster_size):
             self.procs.append(NodeProcess("node %i" % i, str(i), "--test", str(scenario_number), "--clustersize",
                                           str(cluster_size)))
 
     def start_single_process_with_test_scenario(self, scenario_number, i, cluster_size):
+        """
+        Args:
+            scenario_number (int): the scenario to be executed inside the integration_scenarios.py module.
+            i (int): index of node to be started inside a process.
+            cluster_size (int): number of nodes used in the test scenario.
+        """
         self.procs.append(NodeProcess("node %i" % i, str(i), "--test", str(scenario_number), "--clustersize",
                                       str(cluster_size)))
 
@@ -70,6 +89,10 @@ class MultiNodeTest(TestCase):
             node_proc.proc.terminate()
 
     def terminate_single_process(self, i):
+        """
+        Args:
+            i (int): index of node to be terminated.
+        """
         node_name = 'node ' + str(i)
         for node_proc in self.procs:
             if node_proc.name == node_name:
@@ -78,6 +101,10 @@ class MultiNodeTest(TestCase):
                 node_proc.shutdown()
 
     def extract_committed_blocks_single_process(self, i):
+        """
+        Args:
+            i (int): index of node. 
+        """
         node_lines = []
         node_name = 'node ' + str(i)
         for node_proc in self.procs:

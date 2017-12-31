@@ -1,11 +1,11 @@
 """Integration test: Test basic behavior of paxos nodes in a connected network and no node crashes occuring.
 
-note: currently the tests only work locally and with ACCUMULATION_TIME = 0.1 because of timing reasons.
+Note: currently the tests only work locally and with ACCUMULATION_TIME = 0.1 because of timing reasons.
 """
 
-from tests.util import MultiNodeTest
-
 import time
+
+from tests.util import MultiNodeTest
 
 
 class MultiNodeTestBasic(MultiNodeTest):

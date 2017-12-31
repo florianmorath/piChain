@@ -1,3 +1,10 @@
+"""Unit tests of the Node class inside the PaxosLogic module."""
+
+import logging
+import time
+import os
+import shutil
+
 from unittest.mock import MagicMock
 from twisted.internet import task
 from twisted.trial.unittest import TestCase
@@ -5,10 +12,6 @@ from twisted.trial.unittest import TestCase
 from piChain.PaxosLogic import Node, GENESIS
 from piChain.messages import PaxosMessage, Block, Transaction, RequestBlockMessage, PongMessage
 
-import logging
-import time
-import os
-import shutil
 logging.disable(logging.CRITICAL)
 
 
@@ -24,7 +27,7 @@ class TestNode(TestCase):
                 print(e)
                 raise
 
-        self.node = Node(0, MagicMock())
+        self.node = Node(0, {})
         self.node.blocktree.db = MagicMock()
 
     def test_receive_paxos_message_try(self):
@@ -42,10 +45,6 @@ class TestNode(TestCase):
         self.node.receive_paxos_message(try_msg, 1)
         assert self.node.respond.called
         assert self.node.s_max_block_depth == b.depth
-
-        # obj = self.node.respond.call_args[0][0]
-        # print('try_ok message = ', pprint(vars(obj)))
-        # print('self.node vars = ', pprint(vars(self.node)))
 
     def test_receive_paxos_message_try_ok_1(self):
         # try_ok message with no prop/supp block stored locally and message does not contain a propose block

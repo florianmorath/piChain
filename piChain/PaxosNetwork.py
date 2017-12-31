@@ -1,22 +1,20 @@
-"""This module implements the networking between nodes.
+"""This module implements the networking between the nodes.
 """
-
-from twisted.internet.protocol import Factory, connectionDone
-from twisted.protocols.basic import LineReceiver
-from twisted.internet.endpoints import TCP4ClientEndpoint, TCP4ServerEndpoint
-from twisted.internet import reactor, task
-from twisted.internet.endpoints import connectProtocol
-from twisted.internet.task import LoopingCall
-from twisted.python import log
-
-from piChain.messages import RequestBlockMessage, Transaction, Block, RespondBlockMessage, PaxosMessage, PingMessage, \
-    PongMessage, AckCommitMessage
 
 import logging
 import json
 import time
 import sys
 
+from twisted.internet.protocol import Factory, connectionDone
+from twisted.protocols.basic import LineReceiver
+from twisted.internet.endpoints import TCP4ClientEndpoint, TCP4ServerEndpoint, connectProtocol
+from twisted.internet import reactor, task
+from twisted.internet.task import LoopingCall
+from twisted.python import log
+
+from piChain.messages import RequestBlockMessage, Transaction, Block, RespondBlockMessage, PaxosMessage, PingMessage, \
+    PongMessage, AckCommitMessage
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -25,17 +23,19 @@ class Connection(LineReceiver):
     """This class keeps track of information about a connection with another node. It is a subclass of `LineReceiver`
     i.e each line that's received becomes a callback to the method `lineReceived`.
 
-    note: We always serialize objects to a JSON formatted str and encode it as a bytes object with utf-8 encoding
+    Note: We always serialize objects to a JSON formatted str and encode it as a bytes object with utf-8 encoding
         before sending it to the other side.
+
+    Args:
+        factory (ConnectionManager): Twisted Factory used to keep a shared state among multiple connections.
 
     Attributes:
         connection_manager (Factory): The factory that created the connection. It keeps a consistent state
             among connections.
         node_id (str): Unique predefined id of the node on this side of the connection.
         peer_node_id (str): Unique predefined id of the node on the other side of the connection.
-
+        lc_ping (LoopingCall): keeps sending ping messages to other nodes to estimate correct round trip times.
     """
-
     def __init__(self, factory):
         self.connection_manager = factory
         self.node_id = str(self.connection_manager.id)
@@ -68,7 +68,6 @@ class Connection(LineReceiver):
 
         Args:
             line (bytes): The line received. A bytes instance containing a JSON document.
-
         """
         msg = json.loads(line)  # deserialize the line to a python object
         msg_type = msg['msg_type']
@@ -113,21 +112,21 @@ class Connection(LineReceiver):
 
     def send_hello(self):
         """ Send hello/handshake message s.t other node gets to know this node.
-
         """
-        s = json.dumps({'msg_type': 'HEL', 'nodeid': self.node_id})  # Serialize obj to a JSON formatted str
-        self.sendLine(s.encode())   # str.encode() returns encoded version of string as a bytes object (utf-8 encoding)
+        # Serialize obj to a JSON formatted str
+        s = json.dumps({'msg_type': 'HEL', 'nodeid': self.node_id})
+
+        # str.encode() returns encoded version of string as a bytes object (utf-8 encoding)
+        self.sendLine(s.encode())
 
     def send_hello_ack(self):
         """ Send hello/handshake acknowledgement message s.t other node also has a chance to add connection.
-
         """
         s = json.dumps({'msg_type': 'ACK', 'nodeid': self.node_id})
         self.sendLine(s.encode())
 
     def send_ping(self):
         """Send ping message to estimate RTT.
-
         """
         ping = PingMessage(time.time())
         data = ping.serialize()
@@ -141,15 +140,15 @@ class ConnectionManager(Factory):
     """Keeps a consistent state among multiple `Connection` instances. Represents a node with a unique `node_id`.
 
     Attributes:
-        peers_connection (dict of String: Connection): The key represents the node_id and the value the Connection to the node
-            with this node_id.
+        peers_connection (dict: String->Connection): The key represents the node_id and the value the Connection to the
+            node with this node_id.
         id (int): unique identifier of this factory which represents a node.
         message_callback (Callable with signature (msg_type, data, sender: Connection)): Received lines are delegated
             to this callback if they are not handled inside Connection itself.
+        reconnect_loop (LoopingCall): keeps trying to connect to peers if connection to at least one is lost.
         peers (dict): stores the for each node an ip address and port
         reactor (IReactor): The Twisted reactor event loop waits on and demultiplexes events and dispatches them to
-        waiting event handlers. Must be parametrized for testing purpose (default = global reactor).
-
+            waiting event handlers. Must be parametrized for testing purpose (default = global reactor).
     """
     def __init__(self, index, peer_dict):
         self.peers_connection = {}
@@ -172,7 +171,6 @@ class ConnectionManager(Factory):
 
         Args:
             node_index (str): index of this node into list of peers.
-
         """
         self.connections_report()
 
@@ -180,7 +178,8 @@ class ConnectionManager(Factory):
         for index in range(len(self.peers)):
             if str(index) != node_index and str(index) not in self.peers_connection:
                 activated = True
-                point = TCP4ClientEndpoint(reactor, self.peers.get(str(index)).get('ip'), self.peers.get(str(index)).get('port'))
+                point = TCP4ClientEndpoint(reactor, self.peers.get(str(index)).get('ip'),
+                                           self.peers.get(str(index)).get('port'))
                 d = connectProtocol(point, Connection(self))
                 d.addCallback(self.got_protocol)
                 d.addErrback(self.handle_connection_error, str(index))
@@ -202,9 +201,8 @@ class ConnectionManager(Factory):
         `obj` will be broadcast to all the peers.
 
         Args:
-            obj: an instance of type Message, Block or Transaction
-            msg_type (str): 3 char description of message type
-
+            obj: an instance of type Message, Block or Transaction.
+            msg_type (str): 3 char description of message type.
         """
         logging.debug('broadcast: %s', msg_type)
         logging.debug('size = %s', str(sys.getsizeof(obj.serialize())))
@@ -295,13 +293,11 @@ class ConnectionManager(Factory):
     def receive_ack_commit_message(self, message):
         raise NotImplementedError("To be implemented in subclass")
 
-    # methods used by the app
+    # methods used by the app (part of external interface)
 
     def start_server(self):
-        """First starts a server listening on a port given in confg file. Then connect to other peers.
-
+        """First starts a server listening on a port given in peers dict. Then connect to other peers.
         """
-
         endpoint = TCP4ServerEndpoint(reactor, self.peers.get(str(self.id)).get('port'))
         d = endpoint.listen(self)
         d.addErrback(log.err)

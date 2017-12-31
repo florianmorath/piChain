@@ -1,12 +1,13 @@
+"""This script is used to be able to start paxos instances with the subproccesses module for testing purposes."""
+
+import argparse
+import logging
 
 from twisted.internet import reactor
 from twisted.internet.task import deferLater
 
 from piChain.PaxosLogic import Node
 from tests.integration_scenarios import IntegrationScenarios
-
-import argparse
-import logging
 
 
 def main():
