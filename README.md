@@ -24,6 +24,11 @@ $ cd piChain
 $ pip install -r requirements.txt
 $ python setup.py install 
 ```
+note: before running `pip install -r requirements.txt` you need to have a leveldb instance installed. The installation process depends on the OS. For macOS do the following:
+```
+$ brew install leveldb
+$ CFLAGS='-mmacosx-version-min=10.7 -stdlib=libc++' pip install --no-use-wheel plyvel
+```
 
 ## Usage
 
