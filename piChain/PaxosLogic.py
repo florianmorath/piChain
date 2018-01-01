@@ -495,16 +495,17 @@ class Node(ConnectionManager):
 
             for b in block_list:
                 # write committed block to stdout (-> testing purpose)
-                print('block = %s:', str(b.serialize()))
+                print('block = %s:', str(b.block_id))
 
                 self.blocktree.committed_blocks.add(b.block_id)
                 # write changes to disk
                 block_ids_str = jsonpickle.encode(self.blocktree.committed_blocks)
                 block_ids_bytes = block_ids_str.encode()
                 self.blocktree.db.put(b'committed_blocks', block_ids_bytes)
-                logging.debug(self.blocktree.committed_blocks)
 
                 logging.debug('committing a block: with block id = %s', str(b.block_id))
+                logging.debug('committed blocks so far: %s', str(self.blocktree.committed_blocks))
+
                 # call callable of app service
                 commands = []
                 for txn in b.txs:
@@ -578,7 +579,7 @@ class Node(ConnectionManager):
         # add state of creator node to block
         b.creator_state = self.state
 
-        logging.debug('created block = %s', str(b.serialize()))
+        logging.debug('created block with block id = %s', str(b.block_id))
 
         return b
 
