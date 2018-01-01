@@ -1,5 +1,63 @@
 # piChain
 
-piChain is a library which implements a fault-tolerant distributed state machine that inherits features of Paxos, providing strong consistency, 
-and of a blockchain, providing eventual consistency and simplicity.
-For example the library can be used to keep replicas of a distributed data storage consistent in case of failures.
+piChain is a library which implements a fault-tolerant distributed state machine that inherits features of Paxos, providing strong consistency, and of a blockchain, providing eventual consistency and simplicity. For example the library can be used to keep replicas of a distributed data storage consistent in case of failures.
+
+## Requirements
+
+Python 3.6, pip
+
+## Installation
+
+It is recommended to install piChain inside a virtual environment.
+
+Setup a virtual environment:
+```
+$ cd ~
+$ virtualenv --python=python3 <venv-name>
+$ cd <venv-name>
+$ source bin/activate
+```
+Install piChain:
+```
+$ git clone https://github.com/florianmorath/piChain.git
+$ cd piChain
+$ pip install -r requirements.txt
+$ python setup.py install 
+```
+
+## Usage
+
+First one needs to setup the Node instances (each node represents a peer in the network): 
+A Node constructor takes two arguments, a node index and a peers dictionary. The peers dictionary contains an (ip,port) pair for each node. With the `node_index` argument one can select which node from the peers dictionary is running "locally". 
+The `tx_committed` field of a Node instance is a callable that is called once a transaction has been committed. By calling `start_server()` on the Node instance the local node will try to connect to its peers. 
+Note: `start_server()` starts the twisted main loop. 
+```
+from piChain.PaxosLogic import Node
+
+def tx_committed(commands):
+    """
+    Args:
+        commands (list of str): List of committed Transaction commands.
+    """
+    for command in commands:
+        print('command committed: %s' % command)
+
+def main():
+    node_index = 0
+    peers = {
+        '0': {'ip': '127.0.0.1', 'port': 7982},
+        '1': {'ip': '127.0.0.1', 'port': 7981},
+        '2': {'ip': '127.0.0.1', 'port': 7980}
+    }
+    node = Node(node_index, peers)
+    node.tx_committed = tx_committed
+    node.start_server()
+```
+
+Transactions can be committed by calling `make_txn('command')` on a Node instance:
+```
+node.make_txn('command')
+```
+
+## Publications
+- [piChain: When a Blockchain meets Paxos](https://www.tik.ee.ethz.ch/file/14b0ed803c27d585cc06ecd91164c48a/piChain.pdf)
