@@ -31,7 +31,7 @@ First one needs to setup the Node instances (each node represents a peer in the 
 A Node constructor takes two arguments, a node index and a peers dictionary. The peers dictionary contains an (ip,port) pair for each node. With the `node_index` argument one can select which node from the peers dictionary is running "locally". 
 The `tx_committed` field of a Node instance is a callable that is called once a transaction has been committed. By calling `start_server()` on the Node instance the local node will try to connect to its peers. 
 Note: `start_server()` starts the twisted main loop. 
-```
+```python
 from piChain.PaxosLogic import Node
 
 def tx_committed(commands):
@@ -55,7 +55,7 @@ def main():
 ```
 
 Transactions can be committed by calling `make_txn('command')` on a Node instance:
-```
+```python
 node.make_txn('command')
 ```
 
