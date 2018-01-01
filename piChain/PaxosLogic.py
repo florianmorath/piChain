@@ -14,6 +14,7 @@ from piChain.PaxosNetwork import ConnectionManager
 from piChain.blocktree import Blocktree
 from piChain.messages import PaxosMessage, Block, RequestBlockMessage, RespondBlockMessage, Transaction, \
     AckCommitMessage
+from piChain.config import ACCUMULATION_TIME
 
 
 # variables representing the state of a node
@@ -22,9 +23,6 @@ MEDIUM = 1
 SLOW = 2
 
 EPSILON = 0.001
-
-# time the quick node accumulates transactions befor creating a block (0.1 is the default)
-ACCUMULATION_TIME = 0.1
 
 # genesis block
 GENESIS = Block(-1, None, [], 0)
