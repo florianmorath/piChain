@@ -307,3 +307,5 @@ class ConnectionManager(Factory):
         logging.info('Connection synchronization start...')
         deferred = self.reconnect_loop.start(0.1, True)
         deferred.addErrback(log.err)
+
+        reactor.run()

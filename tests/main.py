@@ -36,16 +36,13 @@ def main():
             peers.update({str(i): {'ip': '127.0.0.1', 'port': (7000 + i)}})
 
     node = Node(node_index, peers)
-    node.start_server()
 
     if args.test_scenario is not None:
         # start the paxos algorithm with given test scenario
         scenario = 'scenario' + str(args.test_scenario)
         deferLater(reactor, 1.5, getattr(IntegrationScenarios, scenario), node)
 
-    # start reactor
-    logging.info('start reactor')
-    reactor.run()
+    node.start_server()
 
 
 if __name__ == "__main__":

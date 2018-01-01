@@ -93,7 +93,6 @@ class DatabaseFactory(Factory):
         self.node = Node(node_index, peers)
 
         self.node.tx_committed = self.tx_committed
-        self.node.start_server()
 
         # create a db instance
         base_path = os.path.expanduser('~/.pichain/distributed_DB')
@@ -150,7 +149,7 @@ def main():
     elif node_index == '2':
         reactor.listenTCP(8002, db_factory)
 
-    reactor.run()
+    db_factory.node.start_server()
 
 
 if __name__ == "__main__":
