@@ -6,7 +6,6 @@ import logging
 import json
 import os
 
-import jsonpickle
 import plyvel
 
 from piChain.messages import Block
@@ -26,7 +25,7 @@ class Blocktree:
         genesis (Block): the genesis block (adjusted over time to safe memory).
         head_block (Block): deepest block in the blocktree (head of the blockchain).
         committed_block (Block): last committed block.
-        committed_blocks (set): ids of all committed blocks so far.
+        committed_blocks (list): ids of all committed blocks so far.
         nodes (dict): dictionary from block_id to instance of type Block. Contains all blocks seen so far.
         counter (int): gobal counter used for txn_id and block_id
         ack_commits (dict): dict from block_id to int that counts how many times a block has been committed.
@@ -35,7 +34,7 @@ class Blocktree:
         self.genesis = GENESIS
         self.head_block = GENESIS
         self.committed_block = GENESIS
-        self.committed_blocks = set()
+        self.committed_blocks = []
         self.nodes = {}
         self.nodes.update({GENESIS.block_id: GENESIS})
         self.counter = 0
@@ -65,7 +64,7 @@ class Blocktree:
                 block = Block.unserialize(msg)
                 self.genesis = block
             elif key == b'committed_blocks':
-                block_ids = jsonpickle.decode(value.decode())
+                block_ids = json.loads(value.decode())
                 self.committed_blocks = block_ids
                 logging.debug(self.committed_blocks)
             elif key != b's_max_block_depth' and key != b's_prop_block' and key != b's_supp_block':

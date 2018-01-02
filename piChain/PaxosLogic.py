@@ -7,7 +7,6 @@ import logging
 import time
 import json
 
-import jsonpickle
 from twisted.internet.task import deferLater
 
 from piChain.PaxosNetwork import ConnectionManager
@@ -27,6 +26,8 @@ EPSILON = 0.001
 # genesis block
 GENESIS = Block(-1, None, [], 0)
 GENESIS.depth = 0
+
+# logging.disable(logging.DEBUG)
 
 
 class Node(ConnectionManager):
@@ -501,9 +502,9 @@ class Node(ConnectionManager):
                 # write committed block to stdout (-> testing purpose)
                 print('block = %s:', str(b.block_id))
 
-                self.blocktree.committed_blocks.add(b.block_id)
+                self.blocktree.committed_blocks.append(b.block_id)
                 # write changes to disk
-                block_ids_str = jsonpickle.encode(self.blocktree.committed_blocks)
+                block_ids_str = json.dumps(self.blocktree.committed_blocks)
                 block_ids_bytes = block_ids_str.encode()
                 self.blocktree.db.put(b'committed_blocks', block_ids_bytes)
 

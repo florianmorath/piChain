@@ -17,6 +17,7 @@ from piChain.messages import RequestBlockMessage, Transaction, Block, RespondBlo
     PongMessage, AckCommitMessage
 
 logging.basicConfig(level=logging.DEBUG)
+# logging.disable(logging.DEBUG)
 
 
 class Connection(LineReceiver):
