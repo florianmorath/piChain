@@ -299,6 +299,7 @@ class Node(ConnectionManager):
             if self.state != SLOW:
                 logging.debug('Demoted to slow. Previous State = %s', str(self.state))
             self.state = SLOW
+            self.c_quick_proposing = False
 
         if not self.blocktree.valid_block(block):
             logging.debug('block invalid')
@@ -468,6 +469,9 @@ class Node(ConnectionManager):
 
         if not self.blocktree.ancestor(block, self.blocktree.committed_block) and \
            block != self.blocktree.committed_block:
+            if block.creator_id != self.id:
+                self.c_quick_proposing = False
+
             last_committed_block = self.blocktree.committed_block
             self.blocktree.committed_block = block
             self.move_to_block(block)
@@ -663,7 +667,6 @@ class Node(ConnectionManager):
             # try to commit block later
             logging.debug('commit is already running, try to commit later')
             deferLater(self.reactor, 2 * self.expected_rtt + 2, self.start_commit_process)
-            # self.c_quick_proposing = False
 
     def readjust_timeout(self):
         """Is called if `new_txs` changed and thus the `oldest_txn` may be removed."""
