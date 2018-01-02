@@ -1,19 +1,7 @@
-"""This module contains test scenarios that are used as integration "tests" of PaxosLogic and PaxosNetwork.
+"""This module contains test scenarios that are used as integration "tests" of the PaxosLogic and PaxosNetwork module.
 
-basic behavior:
-- Scenarios 1-6 test the healthy state.
-- Scenarios 7-12 test each possible unhealthy state the system can be in.
-
-crash behavior:
-- Scenarios 20-21 test node crashes.
-
-partition bahavior:
-- Scenarios 30-32 test network partition.
-
-note: Can for example use Multirun plugin of pyCharm or write a script to start all nodes at exactly the same time,
+Note: Can for example use Multirun plugin of pyCharm or write a script to start all nodes at exactly the same time,
 this avoids the problem of initializing the state of the nodes at different times.
-
-note: currently the tests only work locally and with ACCUMULATION_TIME = 0.1 because of timing reasons.
 """
 
 import logging
@@ -22,14 +10,23 @@ from twisted.internet import reactor
 from twisted.internet.task import deferLater
 
 from piChain.messages import Transaction
-from piChain.config import peers
 from piChain.PaxosLogic import Node
 
 
 class IntegrationScenarios:
-
-    """ basic behavior
     """
+    basic behavior:
+        - Scenarios 1-6 test the healthy state.
+        - Scenarios 7-12 test each possible unhealthy state the system can be in.
+
+    crash behavior:
+        - Scenarios 20-21 test node crashes.
+
+    partition bahavior:
+        - Scenarios 30-32 test network partition.
+    """
+
+    # basic behavior
 
     @staticmethod
     def scenario1(node):
@@ -46,7 +43,7 @@ class IntegrationScenarios:
         if node.id == 2:
             # create a Transaction and send it to node with id == 0 (the quick node)
             txn = Transaction(2, 'command1', 1)
-            connection = node.peers.get(peers.get('0').get('uuid'))
+            connection = node.peers_connection.get('0')
             if connection is not None:
                 logging.debug('txn send to node 0')
                 connection.sendLine(txn.serialize())
@@ -335,8 +332,7 @@ class IntegrationScenarios:
             txn3 = Transaction(2, 'command3', 3)
             deferLater(reactor, 4, node.broadcast, txn3, 'TXN')
 
-    """ crash behavior 
-    """
+    # crash behavior
 
     @staticmethod
     def scenario20(node):
@@ -376,8 +372,7 @@ class IntegrationScenarios:
             txn2 = Transaction(1, 'command2', 2)
             deferLater(reactor, 6, node.broadcast, txn2, 'TXN')
 
-    """ partition behavior 
-    """
+    # partition behavior
 
     @staticmethod
     def broadcast(self, obj, msg_type):
@@ -400,9 +395,9 @@ class IntegrationScenarios:
             # do not broadcast to node 4
 
             logging.debug('broadcast: %s', msg_type)
-            # go over all connections in self.peers and call sendLine on them
-            for k, v in self.peers.items():
-                if k == peers.get('4').get('uuid') and self.partitioned:
+            # go over all connections in self.peers_connection and call sendLine on them
+            for k, v in self.peers_connection.items():
+                if k == '4' and self.partitioned:
                     pass
                 else:
                     data = obj.serialize()

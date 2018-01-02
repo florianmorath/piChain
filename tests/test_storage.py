@@ -1,11 +1,15 @@
-from unittest import TestCase
-from piChain.PaxosLogic import Blocktree, GENESIS
-from piChain.messages import Block
+"""Test the underlying plyvel database which stores the relevant data s.t nodes can recover after a crash. """
 
-import plyvel
 import logging
 import os
 import shutil
+
+import plyvel
+from unittest import TestCase
+
+from piChain.PaxosLogic import Blocktree, GENESIS
+from piChain.messages import Block
+
 logging.disable(logging.CRITICAL)
 
 

@@ -1,24 +1,31 @@
-"""This module implements a distributed database as an example usage of the pichain package.
+"""This module implements a distributed database as an example usage of the pichain package. It's a key-value storage
+that can handle keys and values that are arbitrary byte arrays. Supported operations are put(key,value), get(key) and
+delete(key).
 
-note: don't forget to delete ~/.pichain directory before module is used.
+note: If you want to delete the local database and the internal datastructure pichain uses delete the ~/.pichain
+directory.
 """
-
-from twisted.internet.protocol import Factory
-from twisted.protocols.basic import LineReceiver
-from twisted.internet import reactor
-from twisted.internet.protocol import connectionDone
-
-from piChain.PaxosLogic import Node
 
 import logging
 import argparse
 import os
+
 import plyvel
+from twisted.internet.protocol import Factory, connectionDone
+from twisted.protocols.basic import LineReceiver
+from twisted.internet import reactor
+
+from piChain.PaxosLogic import Node
 
 
 class DatabaseProtocol(LineReceiver):
+    """Object representing a connection with another node."""
 
     def __init__(self, factory):
+        """
+        Args:
+            factory (DatabaseFactory): Twisted Factory used to keep a shared state among multiple connections.
+        """
         self.factory = factory
 
     def connectionMade(self):
@@ -30,6 +37,13 @@ class DatabaseProtocol(LineReceiver):
         logging.debug('client connection lost')
 
     def lineReceived(self, line):
+        """ The `line` represents the database operation send by a client. Put and delete operations have to be
+        committed first by calling `make_txn(operation)` on the node instance stored in the factory. Get operations
+        can be directly executed locally.
+
+        Args:
+            line (bytes): received command str encoded in bytes.
+        """
         txn_command = line.decode()
         logging.debug('received command from client: %s', txn_command)
 
@@ -52,12 +66,33 @@ class DatabaseProtocol(LineReceiver):
 
 
 class DatabaseFactory(Factory):
+    """Object managing all connections. This is a twisted Factory used to listen for incoming connections. It keeps a
+    Node instance `self.node` as a shared object among multiple connections.
+
+    Attributes:
+        connections (dict): Maps an IAddress (representing an address of a remote peer) to a DatabaseProtocol instance
+            (representing the connection between the local node and the peer).
+        node (Node): A Node instance representing the local node.
+        db (pyvel db): A plyvel db instance used to store the key-value pairs (python implementation of levelDB).
+    """
     def __init__(self, node_index):
+        """Setup of a Node instance: A peers dictionary containing an (ip,port) pair for each node must be defined. The
+        `node_index` argument defines the node that will run locally. The `tx_committed` field of the Node instance is a
+        callable that is called once a block has been committed. By calling `start_server()` on the Node instance the
+        local node will try to connect to its peers.
+
+        Args:
+            node_index (int):  Index of node in the given peers dict.
+        """
         self.connections = {}
-        self.node = Node(node_index)
+        peers = {
+            '0': {'ip': '127.0.0.1', 'port': 7982},
+            '1': {'ip': '127.0.0.1', 'port': 7981},
+            '2': {'ip': '127.0.0.1', 'port': 7980}
+        }
+        self.node = Node(node_index, peers)
 
         self.node.tx_committed = self.tx_committed
-        self.node.start_server()
 
         # create a db instance
         base_path = os.path.expanduser('~/.pichain/distributed_DB')
@@ -74,15 +109,14 @@ class DatabaseFactory(Factory):
             con.sendLine(line.encode())
 
     def tx_committed(self, commands):
-        """Called once a block is committed.
+        """Called once a transaction has been committed. Since the delete and put operations have now been committed,
+        they can be executed locally.
 
         Args:
             commands (list): list of commands inside committed block (one per Transaction)
 
         """
         for command in commands:
-            logging.debug('command committed: %s', command)
-
             c_list = command.split()
             if c_list[0] == 'put':
                 key = c_list[1]
@@ -98,10 +132,9 @@ class DatabaseFactory(Factory):
 
 
 def main():
-
     # get node index as an argument
     parser = argparse.ArgumentParser()
-    parser.add_argument("node_index", help='Index of node in config.py')
+    parser.add_argument("node_index", help='Index of node in the given peers dict.')
     args = parser.parse_args()
     node_index = args.node_index
 
@@ -116,7 +149,7 @@ def main():
     elif node_index == '2':
         reactor.listenTCP(8002, db_factory)
 
-    reactor.run()
+    db_factory.node.start_server()
 
 
 if __name__ == "__main__":

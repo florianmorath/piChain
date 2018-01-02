@@ -1,10 +1,14 @@
-from twisted.trial import unittest
-from twisted.test import proto_helpers
+"""Test the receipt of message objects (defined in messages.py) and the broadcast and respond functionality implemented
+in the PaxosNetwork module. """
+
 import json
 import time
 import logging
 
+from twisted.trial import unittest
+from twisted.test import proto_helpers
 from unittest.mock import MagicMock
+
 from piChain.PaxosLogic import Node
 from piChain.messages import Transaction, RequestBlockMessage, Block, RespondBlockMessage, PaxosMessage, PongMessage, \
     PingMessage
@@ -16,9 +20,13 @@ class TestConnection(unittest.TestCase):
 
     def setUp(self):
         """Will be called by unittest before each test method and is used for setup purposes.
-
         """
-        self.node = Node(0)
+        peers = {
+            '0': {'ip': '127.0.0.1', 'port': 7982},
+            '1': {'ip': '127.0.0.1', 'port': 7981},
+            '2': {'ip': '127.0.0.1', 'port': 7980}
+        }
+        self.node = Node(0, peers)
         self.node.blocktree.db = MagicMock()
         self.proto = self.node.buildProtocol(('localhost', 0))
         self.proto.lc_ping = MagicMock()
@@ -29,9 +37,8 @@ class TestConnection(unittest.TestCase):
 
     def test_handshake(self):
         """ Test receipt of a handshake message.
-
         """
-        peer_node_id = 'b5564ec6-fd1d-481a-b68b-9b49a0ddd38b'
+        peer_node_id = '0'
         s = json.dumps({'msg_type': 'HEL', 'nodeid': peer_node_id})
         self.proto.lineReceived(s)
 
@@ -43,9 +50,8 @@ class TestConnection(unittest.TestCase):
 
     def test_handshake_ack(self):
         """ Test receipt of a handshake acknowledgement message.
-
         """
-        peer_node_id = 'b5564ec6-fd1d-481a-b68b-9b49a0ddd38b'
+        peer_node_id = '0'
         s = json.dumps({'msg_type': 'ACK', 'nodeid': peer_node_id})
         self.proto.lineReceived(s)
 
@@ -56,7 +62,6 @@ class TestConnection(unittest.TestCase):
 
     def test_rqb(self):
         """Test receipt of a RequestBlockMessage.
-
         """
         self.node.receive_request_blocks_message = MagicMock()
 
@@ -71,7 +76,6 @@ class TestConnection(unittest.TestCase):
 
     def test_txn(self):
         """Test receipt of a Transaction.
-
         """
         self.node.receive_transaction = MagicMock()
 
@@ -86,7 +90,6 @@ class TestConnection(unittest.TestCase):
 
     def test_blk(self):
         """Test receipt of a Block.
-
         """
         self.node.receive_block = MagicMock()
 
@@ -103,7 +106,6 @@ class TestConnection(unittest.TestCase):
 
     def test_rsp(self):
         """Test receipt of a RespondBlockMessage.
-
         """
         self.node.receive_respond_blocks_message = MagicMock()
 
@@ -126,7 +128,6 @@ class TestConnection(unittest.TestCase):
 
     def test_pam(self):
         """Test receipt of a PaxosMessage.
-
         """
         self.node.receive_paxos_message = MagicMock()
 
@@ -138,8 +139,8 @@ class TestConnection(unittest.TestCase):
         block2 = Block(1, 1, [txn1, txn3], 2)
 
         pam = PaxosMessage('TRY', 2)
-        pam.new_block = block
-        pam.last_committed_block = block2
+        pam.new_block = block.block_id
+        pam.last_committed_block = block2.block_id
 
         s = pam.serialize()
         self.proto.lineReceived(s)
@@ -147,12 +148,11 @@ class TestConnection(unittest.TestCase):
         self.assertTrue(self.node.receive_paxos_message.called)
         obj = self.node.receive_paxos_message.call_args[0][0]
         self.assertEqual(type(obj), PaxosMessage)
-        self.assertEqual(obj.new_block.txs[0], txn1)
-        self.assertEqual(obj.last_committed_block.txs[1], txn3)
+        self.assertEqual(obj.new_block, block.block_id)
+        self.assertEqual(obj.last_committed_block, block2.block_id)
 
     def test_PON(self):
         """Test receipt of a PongMessage.
-
         """
         self.node.receive_pong_message = MagicMock()
 
@@ -164,7 +164,6 @@ class TestConnection(unittest.TestCase):
 
     def test_PIN(self):
         """Test receipt of a PingMessage.
-
         """
         timestamp = time.time()
         ping = PingMessage(timestamp)
@@ -183,11 +182,11 @@ class TestConnection(unittest.TestCase):
         proto2.makeConnection(transport2)
 
         # peer 1 connects/sends hello handshake
-        s = json.dumps({'msg_type': 'HEL', 'nodeid': 'b5564ec6-fd1d-481a-b68b-9b49a0ddd38b'})
+        s = json.dumps({'msg_type': 'HEL', 'nodeid': '1'})
         self.proto.lineReceived(s.encode())
 
         # peer 2 connects/sends hello handshake
-        s = json.dumps({'msg_type': 'HEL', 'nodeid': 'c5564ec6-fd1d-481a-b68b-9b49a0ddd38b'})
+        s = json.dumps({'msg_type': 'HEL', 'nodeid': '2'})
         proto2.lineReceived(s.encode())
 
         # clear the transport

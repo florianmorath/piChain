@@ -1,3 +1,10 @@
+"""Unit tests of the Node class inside the PaxosLogic module."""
+
+import logging
+import time
+import os
+import shutil
+
 from unittest.mock import MagicMock
 from twisted.internet import task
 from twisted.trial.unittest import TestCase
@@ -5,10 +12,6 @@ from twisted.trial.unittest import TestCase
 from piChain.PaxosLogic import Node, GENESIS
 from piChain.messages import PaxosMessage, Block, Transaction, RequestBlockMessage, PongMessage
 
-import logging
-import time
-import os
-import shutil
 logging.disable(logging.CRITICAL)
 
 
@@ -23,27 +26,25 @@ class TestNode(TestCase):
             except Exception as e:
                 print(e)
                 raise
-        self.node = Node(0)
+
+        self.node = Node(0, {})
         self.node.blocktree.db = MagicMock()
 
     def test_receive_paxos_message_try(self):
         # try message
         try_msg = PaxosMessage('TRY', 1)
-        try_msg.last_committed_block = GENESIS
+        try_msg.last_committed_block = GENESIS.block_id
 
         b = Block(1, GENESIS.block_id, ['a'], 1)
         b.depth = 1
-        try_msg.new_block = b
+        try_msg.new_block = b.block_id
 
         self.node.respond = MagicMock()
+        self.node.blocktree.nodes.update({b.block_id: b})
 
         self.node.receive_paxos_message(try_msg, 1)
         assert self.node.respond.called
-        assert self.node.s_max_block == b
-
-        # obj = self.node.respond.call_args[0][0]
-        # print('try_ok message = ', pprint(vars(obj)))
-        # print('self.node vars = ', pprint(vars(self.node)))
+        assert self.node.s_max_block_depth == b.depth
 
     def test_receive_paxos_message_try_ok_1(self):
         # try_ok message with no prop/supp block stored locally and message does not contain a propose block
@@ -57,6 +58,7 @@ class TestNode(TestCase):
         self.node.c_votes = 5
         self.node.broadcast = MagicMock()
         self.node.receive_paxos_message(try_ok, None)
+        self.node.blocktree.nodes.update({b.block_id: b})
 
         assert self.node.broadcast.called
         assert self.node.c_com_block == self.node.c_new_block
@@ -87,21 +89,22 @@ class TestNode(TestCase):
         b = Block(1, GENESIS.block_id, ['a'], 1)
         b.depth = 1
 
-        try_ok.supp_block = b
-        try_ok.prop_block = b
+        try_ok.supp_block = b.block_id
+        try_ok.prop_block = b.block_id
 
         self.node.c_request_seq = 1
         self.node.c_new_block = b
         self.node.c_votes = 5
 
         self.node.broadcast = MagicMock()
+        self.node.blocktree.nodes.update({b.block_id: b})
         self.node.receive_paxos_message(try_ok, None)
 
         assert self.node.broadcast.called
         assert self.node.c_prop_block == b
 
         obj = self.node.broadcast.call_args[0][0]
-        assert obj.com_block == b
+        assert obj.com_block == b.block_id
 
     def test_receive_paxos_message_propose(self):
         propose = PaxosMessage('PROPOSE', 1)
@@ -109,15 +112,15 @@ class TestNode(TestCase):
         b = Block(1, GENESIS.block_id, ['a'], 1)
         b.depth = 1
 
-        propose.new_block = GENESIS
-        propose.com_block = GENESIS
+        propose.new_block = GENESIS.block_id
+        propose.com_block = GENESIS.block_id
 
         self.node.respond = MagicMock()
         self.node.receive_paxos_message(propose, 1)
 
         assert self.node.respond.called
-        assert self.node.s_prop_block == propose.com_block
-        assert self.node.s_supp_block == propose.new_block
+        assert self.node.s_prop_block.block_id == propose.com_block
+        assert self.node.s_supp_block.block_id == propose.new_block
 
     def test_receive_paxos_message_propose_ack(self):
         propose_ack = PaxosMessage('PROPOSE_ACK', 1)
@@ -125,10 +128,11 @@ class TestNode(TestCase):
         b = Block(1, GENESIS.block_id, ['a'], 1)
         b.depth = 1
 
-        propose_ack.com_block = b
+        propose_ack.com_block = b.block_id
 
         self.node.c_request_seq = 1
         self.node.c_votes = 5
+        self.node.blocktree.nodes.update({b.block_id: b})
 
         self.node.broadcast = MagicMock()
         self.node.commit = MagicMock()
@@ -283,4 +287,4 @@ class TestNode(TestCase):
 
         assert self.node.broadcast.called
         obj = self.node.broadcast.call_args[0][0]
-        assert obj.last_committed_block == self.node.blocktree.committed_block
+        assert obj.last_committed_block == self.node.blocktree.committed_block.block_id

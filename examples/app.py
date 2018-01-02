@@ -1,44 +1,48 @@
 """This module shows how the pichain package can be used."""
 
-from piChain.PaxosLogic import Node
-from twisted.internet import reactor
-from twisted.internet.task import deferLater
-from tests.integration_scenarios import IntegrationScenarios
-
 import logging
 import argparse
 
+from twisted.internet import reactor
+from twisted.internet.task import deferLater
+
+from piChain.PaxosLogic import Node
 
 
 def tx_committed(commands):
-    """Called once a block is committed.
+    """Called once a block has been committed.
 
     Args:
-        commands (list): list of commands inside committed block (one per Transaction)
-
+        commands (list): List of Transaction commands inside committed block.
     """
     for command in commands:
         logging.debug('command committed: %s', command)
 
 
 def main():
-
+    """Setup of a Node instance: A peers dictionary containing an (ip,port) pair for each node must be defined. With
+    the `node_index` argument one can select the node that will run locally. Optionally one can set the `tx_committed`
+    field of the Node instance which is a callable that is called once a block has been committed. By calling
+    `start_server()` on the Node instance the local node will try to connect to its peers. Transactions can be committed
+    by calling `make_txn(txn)` on the Node instance.
+    """
     parser = argparse.ArgumentParser()
-
-    # start server
-    parser.add_argument("node_index", help='Index of node in config.py')
+    parser.add_argument("node_index", help='Index of node in the given peers dict.')
     args = parser.parse_args()
     node_index = args.node_index
 
-    node = Node(int(node_index))
+    peers = {
+        '0': {'ip': '127.0.0.1', 'port': 7982},
+        '1': {'ip': '127.0.0.1', 'port': 7981},
+        '2': {'ip': '127.0.0.1', 'port': 7980}
+    }
+    node = Node(int(node_index), peers)
     node.tx_committed = tx_committed
     node.start_server()
 
-    # if node_index == '0':
-    #     deferLater(reactor, 20, node.make_txn, 'sql_command1')
-    #     deferLater(reactor, 40, node.make_txn, 'sql_command2')
-
-    deferLater(reactor, 11, IntegrationScenarios.scenario4, node)
+    if node_index == '0':
+        deferLater(reactor, 3, node.make_txn, 'sql_command1')
+        deferLater(reactor, 5, node.make_txn, 'sql_command2')
 
     reactor.run()
 

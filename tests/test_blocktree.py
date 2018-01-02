@@ -1,11 +1,15 @@
-from unittest import TestCase
-from unittest.mock import MagicMock
-from piChain.PaxosLogic import Blocktree, GENESIS
-from piChain.messages import Block
+"""Unit tests of the Blocktree class."""
 
 import logging
 import os
 import shutil
+
+from unittest import TestCase
+from unittest.mock import MagicMock
+
+from piChain.blocktree import Blocktree, GENESIS
+from piChain.messages import Block
+
 logging.disable(logging.CRITICAL)
 
 
@@ -24,7 +28,6 @@ class TestBlocktree(TestCase):
                 raise
 
     def tearDown(self):
-
         # delete level db on disk
         base_path = os.path.expanduser('~/.pichain')
         if os.path.exists(base_path):
@@ -106,7 +109,7 @@ class TestBlocktree(TestCase):
         assert not bt.valid_block(b2)
 
     def test_block_set(self):
-        # test that __hash__ and __eq__ were implemented correctly
+        """Test that __hash__ and __eq__ were implemented correctly."""
         b1 = Block(0, GENESIS.block_id, ['a'], 1)
         block_set = set()
         block_set.add(b1)

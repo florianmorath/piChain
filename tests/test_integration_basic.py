@@ -1,17 +1,17 @@
 """Integration test: Test basic behavior of paxos nodes in a connected network and no node crashes occuring.
 
-note: currently the tests only work locally and with ACCUMULATION_TIME = 0.1 because of timing reasons.
+Note: currently the tests only work locally and with ACCUMULATION_TIME = 0.1 because of timing reasons.
 """
 
-from tests.util import MultiNodeTest
-
 import time
+
+from tests.util import MultiNodeTest
 
 
 class MultiNodeTestBasic(MultiNodeTest):
 
     def test_scenario1(self):
-        self.start_processes_with_test_scenario(1)
+        self.start_processes_with_test_scenario(1, 3)
         time.sleep(3)
         self.terminate_processes()
 
@@ -24,7 +24,7 @@ class MultiNodeTestBasic(MultiNodeTest):
         assert node2_blocks == node1_blocks
 
     def test_scenario2(self):
-        self.start_processes_with_test_scenario(2)
+        self.start_processes_with_test_scenario(2, 3)
         time.sleep(3)
         self.terminate_processes()
 
@@ -37,7 +37,7 @@ class MultiNodeTestBasic(MultiNodeTest):
         assert node2_blocks == node1_blocks
 
     def test_scenario3(self):
-        self.start_processes_with_test_scenario(3)
+        self.start_processes_with_test_scenario(3, 3)
         time.sleep(3)
         self.terminate_processes()
 
@@ -50,7 +50,7 @@ class MultiNodeTestBasic(MultiNodeTest):
         assert node2_blocks == node1_blocks
 
     def test_scenario4(self):
-        self.start_processes_with_test_scenario(4)
+        self.start_processes_with_test_scenario(4, 3)
         time.sleep(4)
         self.terminate_processes()
 
@@ -63,7 +63,7 @@ class MultiNodeTestBasic(MultiNodeTest):
         assert node2_blocks == node1_blocks
 
     def test_scenario5(self):
-        self.start_processes_with_test_scenario(5)
+        self.start_processes_with_test_scenario(5, 3)
         time.sleep(4)
         self.terminate_processes()
 
@@ -76,7 +76,7 @@ class MultiNodeTestBasic(MultiNodeTest):
         assert node2_blocks == node1_blocks
 
     def test_scenario6(self):
-        self.start_processes_with_test_scenario(6)
+        self.start_processes_with_test_scenario(6, 3)
         time.sleep(3)
         self.terminate_processes()
 
@@ -89,7 +89,7 @@ class MultiNodeTestBasic(MultiNodeTest):
         assert node2_blocks == node1_blocks
 
     def test_scenario7(self):
-        self.start_processes_with_test_scenario(7)
+        self.start_processes_with_test_scenario(7, 3)
         time.sleep(3)
         self.terminate_processes()
 
@@ -102,7 +102,7 @@ class MultiNodeTestBasic(MultiNodeTest):
         assert node2_blocks == node1_blocks
 
     def test_scenario8(self):
-        self.start_processes_with_test_scenario(8)
+        self.start_processes_with_test_scenario(8, 3)
         time.sleep(3)
         self.terminate_processes()
 
@@ -115,7 +115,7 @@ class MultiNodeTestBasic(MultiNodeTest):
         assert node2_blocks == node1_blocks
 
     def test_scenario9(self):
-        self.start_processes_with_test_scenario(9)
+        self.start_processes_with_test_scenario(9, 3)
         time.sleep(4)
         self.terminate_processes()
 
@@ -128,7 +128,7 @@ class MultiNodeTestBasic(MultiNodeTest):
         assert node2_blocks == node1_blocks
 
     def test_scenario10(self):
-        self.start_processes_with_test_scenario(10)
+        self.start_processes_with_test_scenario(10, 3)
         time.sleep(3)
         self.terminate_processes()
 
@@ -141,7 +141,7 @@ class MultiNodeTestBasic(MultiNodeTest):
         assert node2_blocks == node1_blocks
 
     def test_scenario11(self):
-        self.start_processes_with_test_scenario(11)
+        self.start_processes_with_test_scenario(11, 3)
         time.sleep(8)
         self.terminate_processes()
 
@@ -154,7 +154,7 @@ class MultiNodeTestBasic(MultiNodeTest):
         assert node2_blocks == node1_blocks
 
     def test_scenario12(self):
-        self.start_processes_with_test_scenario(12)
+        self.start_processes_with_test_scenario(12, 3)
         time.sleep(8)
         self.terminate_processes()
 
