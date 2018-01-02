@@ -42,8 +42,8 @@ class Connection(LineReceiver):
         self.peer_node_id = None
         self.lc_ping = LoopingCall(self.send_ping)
 
-        # init max message size to 5 Megabyte
-        self.MAX_LENGTH = 5000000
+        # init max message size to 10 Megabyte
+        self.MAX_LENGTH = 10000000
 
     def connectionMade(self):
         logging.info('Connected to %s.', str(self.transport.getPeer()))

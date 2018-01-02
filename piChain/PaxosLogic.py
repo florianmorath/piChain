@@ -14,7 +14,7 @@ from piChain.PaxosNetwork import ConnectionManager
 from piChain.blocktree import Blocktree
 from piChain.messages import PaxosMessage, Block, RequestBlockMessage, RespondBlockMessage, Transaction, \
     AckCommitMessage
-from piChain.config import ACCUMULATION_TIME, MAX_COMMIT_TIME
+from piChain.config import ACCUMULATION_TIME, MAX_COMMIT_TIME, MAX_TXN_COUNT
 
 
 # variables representing the state of a node
@@ -563,14 +563,22 @@ class Node(ConnectionManager):
 
         # create block
         self.blocktree.counter += 1
-        b = Block(self.id, self.blocktree.head_block.block_id, self.new_txs, self.blocktree.counter)
-        self.blocktree.db.put(b'counter', str(self.blocktree.counter).encode())
+        if len(self.new_txs) < MAX_TXN_COUNT:
+            b = Block(self.id, self.blocktree.head_block.block_id, self.new_txs, self.blocktree.counter)
+            # create a new, empty list (do not use clear!)
+            self.new_txs = []
+        else:
+            logging.debug('Cannot fit all transactions in the block that is beeing created. Remaining transactions '
+                          'will be included in the next block.')
+            txns_include = self.new_txs[:MAX_TXN_COUNT]
+            b = Block(self.id, self.blocktree.head_block.block_id, txns_include, self.blocktree.counter)
+            self.new_txs = self.new_txs[MAX_TXN_COUNT:]
+            self.readjust_timeout()
 
         # compute its depth (will be fixed -> depth field is only set once)
         b.depth = d + len(b.txs)
 
-        # create a new, empty list (do not use clear!)
-        self.new_txs = []
+        self.blocktree.db.put(b'counter', str(self.blocktree.counter).encode())
 
         # add block to blocktree
         self.blocktree.add_block(b)
