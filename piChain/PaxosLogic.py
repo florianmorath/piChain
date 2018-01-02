@@ -14,7 +14,7 @@ from piChain.PaxosNetwork import ConnectionManager
 from piChain.blocktree import Blocktree
 from piChain.messages import PaxosMessage, Block, RequestBlockMessage, RespondBlockMessage, Transaction, \
     AckCommitMessage
-from piChain.config import ACCUMULATION_TIME
+from piChain.config import ACCUMULATION_TIME, MAX_COMMIT_TIME
 
 
 # variables representing the state of a node
@@ -645,7 +645,7 @@ class Node(ConnectionManager):
             self.c_prop_block = None
 
             # set commit_running to False if after expected time needed for commit process still equals True
-            deferLater(self.reactor, 2 * self.expected_rtt + 2, self.commit_timeout, self.c_request_seq)
+            deferLater(self.reactor, 2 * self.expected_rtt + MAX_COMMIT_TIME, self.commit_timeout, self.c_request_seq)
 
             if not self.c_quick_proposing:
                 self.c_new_block = self.c_current_committable_block
@@ -666,7 +666,7 @@ class Node(ConnectionManager):
         elif self.state == QUICK and self.c_commit_running:
             # try to commit block later
             logging.debug('commit is already running, try to commit later')
-            deferLater(self.reactor, 2 * self.expected_rtt + 2, self.start_commit_process)
+            deferLater(self.reactor, 2 * self.expected_rtt + MAX_COMMIT_TIME, self.start_commit_process)
 
     def readjust_timeout(self):
         """Is called if `new_txs` changed and thus the `oldest_txn` may be removed."""
@@ -681,7 +681,8 @@ class Node(ConnectionManager):
             self.c_commit_running = False
             self.c_quick_proposing = False
             logging.debug('current commit terminated because did not receive enough acknowlegements')
-            deferLater(self.reactor, 2 * self.expected_rtt + 2, self.start_commit_process)
+            logging.debug('try to commit again')
+            self.start_commit_process()
 
     def get_block(self, block_id):
         """Get block based on block_id.
