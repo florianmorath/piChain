@@ -139,8 +139,8 @@ class TestConnection(unittest.TestCase):
         block2 = Block(1, 1, [txn1, txn3], 2)
 
         pam = PaxosMessage('TRY', 2)
-        pam.new_block = block
-        pam.last_committed_block = block2
+        pam.new_block = block.block_id
+        pam.last_committed_block = block2.block_id
 
         s = pam.serialize()
         self.proto.lineReceived(s)
@@ -148,8 +148,8 @@ class TestConnection(unittest.TestCase):
         self.assertTrue(self.node.receive_paxos_message.called)
         obj = self.node.receive_paxos_message.call_args[0][0]
         self.assertEqual(type(obj), PaxosMessage)
-        self.assertEqual(obj.new_block.txs[0], txn1)
-        self.assertEqual(obj.last_committed_block.txs[1], txn3)
+        self.assertEqual(obj.new_block, block.block_id)
+        self.assertEqual(obj.last_committed_block, block2.block_id)
 
     def test_PON(self):
         """Test receipt of a PongMessage.

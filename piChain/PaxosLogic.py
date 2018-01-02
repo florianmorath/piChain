@@ -407,12 +407,12 @@ class Node(ConnectionManager):
             parent = self.blocktree.db.get(str(parent_block_id).encode())
             while parent is not None and parent_block_id is not None:
                 self.blocktree.db.delete(str(parent_block_id).encode())
-                self.blocktree.db.compact_range()
 
                 msg = json.loads(parent)
                 block = Block.unserialize(msg)
                 parent = self.blocktree.db.get(str(block.parent_block_id).encode())
                 parent_block_id = block.parent_block_id
+            self.blocktree.db.compact_range()
 
     def move_to_block(self, target):
         """Change to `target` block as new `head_block`. If `target` is found on a forked path, have to broadcast txs
@@ -663,7 +663,7 @@ class Node(ConnectionManager):
             # try to commit block later
             logging.debug('commit is already running, try to commit later')
             deferLater(self.reactor, 2 * self.expected_rtt + 2, self.start_commit_process)
-            self.c_quick_proposing = False
+            # self.c_quick_proposing = False
 
     def readjust_timeout(self):
         """Is called if `new_txs` changed and thus the `oldest_txn` may be removed."""
@@ -678,6 +678,7 @@ class Node(ConnectionManager):
             self.c_commit_running = False
             self.c_quick_proposing = False
             logging.debug('current commit terminated because did not receive enough acknowlegements')
+            deferLater(self.reactor, 2 * self.expected_rtt + 2, self.start_commit_process)
 
     def get_block(self, block_id):
         """Get block based on block_id.
