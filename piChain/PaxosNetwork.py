@@ -16,9 +16,6 @@ from twisted.python import log
 from piChain.messages import RequestBlockMessage, Transaction, Block, RespondBlockMessage, PaxosMessage, PingMessage, \
     PongMessage, AckCommitMessage
 
-# logging.basicConfig(level=logging.DEBUG)
-logging.disable(logging.DEBUG)
-
 
 class Connection(LineReceiver):
     """This class keeps track of information about a connection with another node. It is a subclass of `LineReceiver`

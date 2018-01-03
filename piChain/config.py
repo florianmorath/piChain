@@ -25,3 +25,11 @@ MAX_COMMIT_TIME = 2
 # dependences: depends on transaction size.
 # default = 7500 transactions (this is based on transactions that are of size = 200 bytes)
 MAX_TXN_COUNT = 7500
+
+#
+# Logging and Debug
+#
+
+# If set to true will log all debug messages.
+# note: set it to False during a performance test.
+TESTING = True

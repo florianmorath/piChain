@@ -2,9 +2,8 @@
  the last committed block and the head block of the tree. It provides operations like adding blocks, checking
  for the validity of a new block and checking if a block is an ancestor of another one."""
 
-import ujson as json
+import json
 import os
-import logging
 
 import plyvel
 
@@ -13,8 +12,6 @@ from piChain.messages import Block
 # genesis block
 GENESIS = Block(-1, None, [], 0)
 GENESIS.depth = 0
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 class Blocktree:

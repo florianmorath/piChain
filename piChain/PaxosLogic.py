@@ -13,7 +13,7 @@ from piChain.PaxosNetwork import ConnectionManager
 from piChain.blocktree import Blocktree
 from piChain.messages import PaxosMessage, Block, RequestBlockMessage, RespondBlockMessage, Transaction, \
     AckCommitMessage
-from piChain.config import ACCUMULATION_TIME, MAX_COMMIT_TIME, MAX_TXN_COUNT
+from piChain.config import ACCUMULATION_TIME, MAX_COMMIT_TIME, MAX_TXN_COUNT, TESTING
 
 
 # variables representing the state of a node
@@ -27,7 +27,9 @@ EPSILON = 0.001
 GENESIS = Block(-1, None, [], 0)
 GENESIS.depth = 0
 
-logging.disable(logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
+if not TESTING:
+    logging.disable(logging.DEBUG)
 
 
 class Node(ConnectionManager):
@@ -123,7 +125,7 @@ class Node(ConnectionManager):
             message (PaxosMessage): Message received.
             sender (Connection): Connection instance of the sender (None if sender is this Node).
         """
-        logging.debug('message type = %s', message.msg_type)
+        logging.debug('receive message type = %s', message.msg_type)
         if message.msg_type == 'TRY':
             # make sure last commited block of sender is also committed by this node
             last_committed_block = self.get_block(message.last_committed_block)
