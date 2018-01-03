@@ -255,7 +255,7 @@ class Transaction:
         return self.txn_id == other.txn_id
 
     def __hash__(self):
-        return 0
+        return hash(self.txn_id)
 
     def serialize(self):
         """
