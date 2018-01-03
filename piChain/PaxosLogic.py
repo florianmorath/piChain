@@ -221,7 +221,7 @@ class Node(ConnectionManager):
                     self.blocktree.db.put(b's_prop_block', block_id_bytes)
 
                 if self.s_supp_block is not None:
-                    block_id_bytes = str(self.s_supp_block).encode()
+                    block_id_bytes = str(self.s_supp_block.block_id).encode()
                     self.blocktree.db.put(b's_supp_block', block_id_bytes)
 
                 # create a PROPOSE_ACK message

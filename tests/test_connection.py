@@ -169,7 +169,7 @@ class TestConnection(unittest.TestCase):
         s = ping.serialize()
         self.proto.lineReceived(s)
 
-        obj = PongMessage.unserialize(self.proto.transport.value())
+        obj = PongMessage.unserialize(self.proto.transport.value()[:-2])
         self.assertEqual(obj.time, timestamp)
 
     def test_broadcast(self):
@@ -194,9 +194,9 @@ class TestConnection(unittest.TestCase):
         rbm = RequestBlockMessage(3)
         self.node.broadcast(rbm, 'RQB')
 
-        obj = RequestBlockMessage.unserialize(self.proto.transport.value())
+        obj = RequestBlockMessage.unserialize(self.proto.transport.value()[:-2])
 
-        obj2 = RequestBlockMessage.unserialize(proto2.transport.value())
+        obj2 = RequestBlockMessage.unserialize(proto2.transport.value()[:-2])
 
         self.assertEqual(rbm.block_id, obj.block_id)
         self.assertEqual(rbm.block_id, obj2.block_id)
@@ -205,6 +205,6 @@ class TestConnection(unittest.TestCase):
         rbm = RequestBlockMessage(3)
         self.node.respond(rbm, self.proto)
 
-        obj = RequestBlockMessage.unserialize(self.proto.transport.value())
+        obj = RequestBlockMessage.unserialize(self.proto.transport.value()[:-2])
 
         self.assertEqual(rbm.block_id, obj.block_id)
