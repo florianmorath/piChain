@@ -4,6 +4,7 @@
 
 import ujson as json
 import os
+import logging
 
 import plyvel
 
@@ -12,6 +13,8 @@ from piChain.messages import Block
 # genesis block
 GENESIS = Block(-1, None, [], 0)
 GENESIS.depth = 0
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 class Blocktree:
@@ -46,27 +49,30 @@ class Blocktree:
             os.makedirs(path)
         self.db = plyvel.DB(path, create_if_missing=True)
 
-        # load blocks and counter (after crash)
+        # first load all the blocks
+        for key, value in self.db:
+                # block_id -> block
+                if key.decode().isdigit():
+                    block_id = int(key.decode())
+                    block = Block.unserialize(value)
+                    self.nodes.update({block_id: block})
+
+        # load all block ids and counter
         for key, value in self.db:
             if key == b'committed_block':
-                block = Block.unserialize(value)
+                block = self.nodes.get(int(value.decode()))
                 self.committed_block = block
             elif key == b'head_block':
-                block = Block.unserialize(value)
+                block = self.nodes.get(int(value.decode()))
                 self.head_block = block
             elif key == b'counter':
                 self.counter = int(value.decode())
             elif key == b'genesis':
-                block = Block.unserialize(value)
+                block = self.nodes.get(int(value.decode()))
                 self.genesis = block
             elif key == b'committed_blocks':
                 block_ids = json.loads(value.decode())
                 self.committed_blocks = block_ids
-            elif key != b's_max_block_depth' and key != b's_prop_block' and key != b's_supp_block':
-                # block_id -> block
-                block_id = int(key.decode())
-                block = Block.unserialize(value)
-                self.nodes.update({block_id: block})
 
     def ancestor(self, block_a, block_b):
         """Check if `block_a` is ancestor of `block_b`. Both blocks must be included in `self.nodes`.

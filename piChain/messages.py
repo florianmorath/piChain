@@ -2,7 +2,7 @@
 serialized and unserialized."""
 
 import ujson as json
-import logging
+
 
 class PaxosMessage:
     """ A paxos message used to commit a block.
@@ -273,7 +273,6 @@ class Transaction:
         Returns:
              Transaction: original Transaction instance.
         """
-
         d = json.loads(msg[3:])
         obj = Transaction.__new__(Transaction)
         for key, value in d.items():

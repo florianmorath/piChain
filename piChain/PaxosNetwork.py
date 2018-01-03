@@ -207,12 +207,11 @@ class ConnectionManager(Factory):
             msg_type (str): 3 char description of message type.
         """
         logging.debug('broadcast: %s', msg_type)
-        # logging.debug('size = %s', str(sys.getsizeof(obj.serialize())))
         logging.debug('time = %s', str(time.time()))
 
         # go over all connections in self.peers and call sendLine on them
+        data = obj.serialize()
         for k, v in self.peers_connection.items():
-            data = obj.serialize()
             v.sendLine(data)
 
         # if obj is a Transaction then the node also has to send it to itself

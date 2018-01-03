@@ -110,10 +110,10 @@ class Node(ConnectionManager):
             if key == b's_max_block_depth':
                 self.s_max_block_depth = int(value.decode())
             elif key == b's_prop_block':
-                block = Block.unserialize(value)
+                block = self.blocktree.nodes.get(int(value.decode()))
                 self.s_prop_block = block
             elif key == b's_supp_block':
-                block = Block.unserialize(value)
+                block = self.blocktree.nodes.get(int(value.decode()))
                 self.s_supp_block = block
 
     def receive_paxos_message(self, message, sender):
@@ -214,12 +214,12 @@ class Node(ConnectionManager):
 
                 # write changes to disk (add s_prop_block and s_supp_block)
                 if self.s_prop_block is not None:
-                    block_bytes = self.s_prop_block.serialize()
-                    self.blocktree.db.put(b's_prop_block', block_bytes)
+                    block_id_bytes = str(self.s_prop_block.block_id).encode()
+                    self.blocktree.db.put(b's_prop_block', block_id_bytes)
 
                 if self.s_supp_block is not None:
-                    block_bytes = self.s_supp_block.serialize()
-                    self.blocktree.db.put(b's_supp_block', block_bytes)
+                    block_id_bytes = str(self.s_supp_block).encode()
+                    self.blocktree.db.put(b's_supp_block', block_id_bytes)
 
                 # create a PROPOSE_ACK message
                 propose_ack = PaxosMessage('PROPOSE_ACK', message.request_seq)
@@ -387,13 +387,14 @@ class Node(ConnectionManager):
             logging.debug('new genesis block id = %s', str(self.blocktree.genesis.block_id))
 
             # write it to db
-            block_bytes = self.blocktree.genesis.serialize()
-            self.blocktree.db.put(b'genesis', block_bytes)
+            block_id_bytes = str(self.blocktree.genesis.block_id).encode()
+            self.blocktree.db.put(b'genesis', block_id_bytes)
 
-            # delete inside blocktree.nodes dict
+            # delete inside blocktree.nodes dict and on disk
             parent = self.blocktree.genesis
             while parent is not None and parent.parent_block_id is not None:
                 parent_block_id = parent.parent_block_id
+                self.blocktree.db.delete(str(parent_block_id).encode())
                 parent = self.blocktree.nodes.pop(parent_block_id, None)
                 # also delete txns
                 if parent is not None:
@@ -402,14 +403,7 @@ class Node(ConnectionManager):
 
             self.blocktree.nodes.update({GENESIS.block_id: GENESIS})
 
-            # delete on disk
-            parent_block_id = self.blocktree.genesis.parent_block_id
-            parent = self.blocktree.db.get(str(parent_block_id).encode())
-            while parent is not None and parent_block_id is not None:
-                self.blocktree.db.delete(str(parent_block_id).encode())
-                block = Block.unserialize(parent)
-                parent = self.blocktree.db.get(str(block.parent_block_id).encode())
-                parent_block_id = block.parent_block_id
+            # force deletion in leveldb
             self.blocktree.db.compact_range()
 
     def move_to_block(self, target):
@@ -445,8 +439,8 @@ class Node(ConnectionManager):
             self.blocktree.head_block = target
 
             # write changes to disk (add headblock)
-            block_bytes = target.serialize()
-            self.blocktree.db.put(b'head_block', block_bytes)
+            block_id_bytes = str(target.block_id).encode()
+            self.blocktree.db.put(b'head_block', block_id_bytes)
 
             # broadcast txs in to_broadcast
             for tx in to_broadcast:
@@ -474,8 +468,8 @@ class Node(ConnectionManager):
             self.move_to_block(block)
 
             # write changes to disk (add committed block)
-            block_bytes = block.serialize()
-            self.blocktree.db.put(b'committed_block', block_bytes)
+            block_id_bytes = str(block.block_id).encode()
+            self.blocktree.db.put(b'committed_block', block_id_bytes)
 
             # broadcast confirmation of committing this block
             acm = AckCommitMessage(block.block_id)
