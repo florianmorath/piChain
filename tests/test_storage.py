@@ -8,7 +8,7 @@ import plyvel
 from unittest import TestCase
 
 from piChain.PaxosLogic import Blocktree, GENESIS
-from piChain.messages import Block
+from piChain.messages import Block, Transaction
 
 logging.disable(logging.CRITICAL)
 
@@ -44,11 +44,11 @@ class TestBlocktree(TestCase):
 
     def test_write(self):
 
-        b1 = Block(1, GENESIS.block_id, ['a'], 1)
-        b2 = Block(2, GENESIS.block_id, ['a'], 2)
-        b3 = Block(3, b2.block_id, ['a'], 3)
-        b4 = Block(4, b3.block_id, ['a'], 4)
-        b5 = Block(5, b2.block_id, ['a'], 5)
+        b1 = Block(1, GENESIS.block_id, [Transaction(0, 'c', 0)], 1)
+        b2 = Block(2, GENESIS.block_id, [Transaction(0, 'c', 1)], 2)
+        b3 = Block(3, b2.block_id, [Transaction(0, 'c', 2)], 3)
+        b4 = Block(4, b3.block_id, [Transaction(0, 'c', 3)], 4)
+        b5 = Block(5, b2.block_id, [Transaction(0, 'c', 4)], 5)
 
         self.bt.add_block(b1)
         self.bt.add_block(b2)
@@ -63,11 +63,11 @@ class TestBlocktree(TestCase):
         assert self.bt.db.get(str(b5.block_id).encode()) == b5.serialize()
 
     def test_read(self):
-        b1 = Block(1, GENESIS.block_id, ['a'], 1)
-        b2 = Block(2, GENESIS.block_id, ['a'], 2)
-        b3 = Block(3, b2.block_id, ['a'], 3)
-        b4 = Block(4, b3.block_id, ['a'], 4)
-        b5 = Block(5, b2.block_id, ['a'], 5)
+        b1 = Block(1, GENESIS.block_id, [Transaction(0, 'c', 0)], 1)
+        b2 = Block(2, GENESIS.block_id, [Transaction(0, 'c', 1)], 2)
+        b3 = Block(3, b2.block_id, [Transaction(0, 'c', 2)], 3)
+        b4 = Block(4, b3.block_id, [Transaction(0, 'c', 3)], 4)
+        b5 = Block(5, b2.block_id, [Transaction(0, 'c', 4)], 5)
 
         self.bt.add_block(b1)
         self.bt.add_block(b2)

@@ -5,7 +5,7 @@ It implements the Node class which represents a paxos node and specifies how a p
 import random
 import logging
 import time
-import json
+import ujson as json
 
 from twisted.internet.task import deferLater
 
@@ -110,12 +110,10 @@ class Node(ConnectionManager):
             if key == b's_max_block_depth':
                 self.s_max_block_depth = int(value.decode())
             elif key == b's_prop_block':
-                msg = json.loads(value)
-                block = Block.unserialize(msg)
+                block = Block.unserialize(value)
                 self.s_prop_block = block
             elif key == b's_supp_block':
-                msg = json.loads(value)
-                block = Block.unserialize(msg)
+                block = Block.unserialize(value)
                 self.s_supp_block = block
 
     def receive_paxos_message(self, message, sender):
@@ -409,9 +407,7 @@ class Node(ConnectionManager):
             parent = self.blocktree.db.get(str(parent_block_id).encode())
             while parent is not None and parent_block_id is not None:
                 self.blocktree.db.delete(str(parent_block_id).encode())
-
-                msg = json.loads(parent)
-                block = Block.unserialize(msg)
+                block = Block.unserialize(parent)
                 parent = self.blocktree.db.get(str(block.parent_block_id).encode())
                 parent_block_id = block.parent_block_id
             self.blocktree.db.compact_range()

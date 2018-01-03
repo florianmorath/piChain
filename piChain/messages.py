@@ -1,8 +1,8 @@
 """This module defines the representation of all objects that need to be sent over the network and thus need to be
 serialized and unserialized."""
 
-import json
-
+import ujson as json
+import logging
 
 class PaxosMessage:
     """ A paxos message used to commit a block.
@@ -33,30 +33,20 @@ class PaxosMessage:
         """
         Returns (bytes): bytes representing the object.
         """
-        obj_str = json.dumps(self, default=PaxosMessage.serialize_instance)
-        s = json.dumps({'msg_type': 'PAM', 'obj_str': obj_str})
-        return s.encode()
+        obj_str = json.dumps(self.__dict__)
+        return b'PAM' + obj_str.encode()
 
     @staticmethod
     def unserialize(msg):
         """
         Args:
-            msg (json formatted str): PaxosMessage represented as a json formatted str.
+            msg (bytes): PaxosMessage represented in bytes.
 
         Returns:
              PaxosMessage: original PaxosMessage instance.
         """
-        pam = json.loads(msg['obj_str'], object_hook=PaxosMessage.unserialize_object)
-        return pam
-
-    @staticmethod
-    def serialize_instance(obj):
-        d = vars(obj)
-        return d
-
-    @staticmethod
-    def unserialize_object(d):
-        obj = PaxosMessage.__new__(PaxosMessage)  # Make instance without calling __init__
+        d = json.loads(msg[3:])
+        obj = PaxosMessage.__new__(PaxosMessage)
         for key, value in d.items():
             setattr(obj, key, value)
         return obj
@@ -75,30 +65,20 @@ class RequestBlockMessage:
         """
         Returns (bytes): bytes representing the object.
         """
-        obj_str = json.dumps(self, default=RequestBlockMessage.serialize_instance)
-        s = json.dumps({'msg_type': 'RQB', 'obj_str': obj_str})
-        return s.encode()
+        obj_str = json.dumps(self.__dict__)
+        return b'RQB' + obj_str.encode()
 
     @staticmethod
     def unserialize(msg):
         """
         Args:
-            msg (json formatted str): RequestBlockMessage represented as a json formatted str.
+            msg (bytes): RequestBlockMessage represented in bytes.
 
         Returns:
              RequestBlockMessage: original RequestBlockMessage instance.
         """
-        rqb = json.loads(msg['obj_str'], object_hook=RequestBlockMessage.unserialize_object)
-        return rqb
-
-    @staticmethod
-    def serialize_instance(obj):
-        d = vars(obj)
-        return d
-
-    @staticmethod
-    def unserialize_object(d):
-        obj = RequestBlockMessage.__new__(RequestBlockMessage)  # Make instance without calling __init__
+        d = json.loads(msg[3:])
+        obj = RequestBlockMessage.__new__(RequestBlockMessage)
         for key, value in d.items():
             setattr(obj, key, value)
         return obj
@@ -117,41 +97,29 @@ class RespondBlockMessage:
         """
         Returns (bytes): bytes representing the object.
         """
-        obj_str = json.dumps(self, default=RespondBlockMessage.serialize_instance)
-        s = json.dumps({'msg_type': 'RSB', 'obj_str': obj_str})
-        # {"msg_type": "RSB", "obj_str": "{\"blocks\": [{\"creator_id\": 0, \"SEQ\": 1, \"block_id\": 65536, \"creator_state\": 0, \"parent_block_id\": -1, \"txs\": [{\"creator_id\": 2, \"SEQ\": 1, \"txn_id\": 65538, \"content\": \"command1\"}], \"depth\": 1}]}"}
-        return s.encode()
+        block_list = []
+        for b in self.blocks:
+            block_list.append(b.serialize().decode())
+            obj_str = json.dumps(block_list)
+        return b'RSB' + obj_str.encode()
 
     @staticmethod
     def unserialize(msg):
         """
         Args:
-            msg (json formatted str): RequestBlockMessage represented as a json formatted str.
+            msg (bytes): RespondBlockMessage represented in bytes.
 
         Returns:
-             RequestBlockMessage: original RequestBlockMessage instance.
+             RespondBlockMessage: original RespondBlockMessage instance.
         """
-        rsb = json.loads(msg['obj_str'], object_hook=RespondBlockMessage.unserialize_object)
-        return rsb
+        msg_list = json.loads(msg[3:])
+        blocks = []
+        for block in msg_list:
+            blocks.append(Block.unserialize(block.encode()))
 
-    @staticmethod
-    def serialize_instance(obj):
-        d = vars(obj)
-        return d
-
-    @staticmethod
-    def unserialize_object(d):
-        for key, value in d.items():
-            if key == 'block_id':
-                blk = Block.unserialize_object(d)
-                return blk
-            if key == 'blocks':
-                obj = RespondBlockMessage.__new__(RespondBlockMessage)
-                setattr(obj, key, value)
-                return obj
-            if key == 'txn_id':
-                txn = Transaction.unserialize_object(d)
-                return txn
+        obj = RespondBlockMessage.__new__(RespondBlockMessage)
+        setattr(obj, 'blocks', blocks)
+        return obj
 
 
 class AckCommitMessage:
@@ -167,30 +135,20 @@ class AckCommitMessage:
         """
         Returns (bytes): bytes representing the object.
         """
-        obj_str = json.dumps(self, default=AckCommitMessage.serialize_instance)
-        s = json.dumps({'msg_type': 'ACM', 'obj_str': obj_str})
-        return s.encode()
+        obj_str = json.dumps(self.__dict__)
+        return b'ACM' + obj_str.encode()
 
     @staticmethod
     def unserialize(msg):
         """
         Args:
-            msg (json formatted str): RespondBlockMessage represented as a json formatted str.
+            msg (bytes): AckCommitMessage represented in bytes.
 
         Returns:
-             RespondBlockMessage: original RespondBlockMessage instance.
+             AckCommitMessage: original AckCommitMessage instance.
         """
-        acm = json.loads(msg['obj_str'], object_hook=AckCommitMessage.unserialize_object)
-        return acm
-
-    @staticmethod
-    def serialize_instance(obj):
-        d = vars(obj)
-        return d
-
-    @staticmethod
-    def unserialize_object(d):
-        obj = AckCommitMessage.__new__(AckCommitMessage)  # Make instance without calling __init__
+        d = json.loads(msg[3:])
+        obj = AckCommitMessage.__new__(AckCommitMessage)
         for key, value in d.items():
             setattr(obj, key, value)
         return obj
@@ -240,37 +198,38 @@ class Block:
         """
         Returns (bytes): bytes representing the object.
         """
-        obj_str = json.dumps(self, default=Block.serialize_instance)
-        s = json.dumps({'msg_type': 'BLK', 'obj_str': obj_str})
-        return s.encode()
+        txs = self.txs
+        txns_list_serialized = []
+        for txn in self.txs:
+            txns_list_serialized.append(txn.__dict__)
+        self.txs = txns_list_serialized
+        obj_str = json.dumps(self.__dict__)
+        self.txs = txs
+        return b'BLK' + obj_str.encode()
 
     @staticmethod
     def unserialize(msg):
         """
         Args:
-            msg (json formatted str): Transaction represented as a json formatted str.
+            msg (bytes): Block represented in bytes.
 
         Returns:
-             Transaction: original Transaction instance.
+             Block: original Block instance.
         """
-        blk = json.loads(msg['obj_str'], object_hook=Block.unserialize_object)
-        return blk
-
-    @staticmethod
-    def serialize_instance(obj):
-        d = vars(obj)
-        return d
-
-    @staticmethod
-    def unserialize_object(d):
+        d = json.loads(msg[3:])
+        obj = Block.__new__(Block)
         for key, value in d.items():
-            if key == 'txn_id':
-                return Transaction.unserialize_object(d)
-            if key == 'block_id':
-                obj = Block.__new__(Block)  # Make instance without calling __init__
-                for key1, value1 in d.items():
-                    setattr(obj, key1, value1)
-                return obj
+            if key == 'txs':
+                txs = []
+                for txn in value:
+                    txn_obj = Transaction.__new__(Transaction)
+                    for key1, value1 in txn.items():
+                        setattr(txn_obj, key1, value1)
+                    txs.append(txn_obj)
+                setattr(obj, key, txs)
+            else:
+                setattr(obj, key, value)
+        return obj
 
 
 class Transaction:
@@ -302,30 +261,21 @@ class Transaction:
         """
         Returns (bytes): bytes representing the object.
         """
-        obj_str = json.dumps(self, default=Transaction.serialize_instance)
-        s = json.dumps({'msg_type': 'TXN', 'obj_str': obj_str})
-        return s.encode()
+        obj_str = json.dumps(self.__dict__)
+        return b'TXN' + obj_str.encode()
 
     @staticmethod
     def unserialize(msg):
         """
         Args:
-            msg (json formatted str): Transaction represented as a json formatted str.
+            msg (bytes): Transaction represented in bytes.
 
         Returns:
              Transaction: original Transaction instance.
         """
-        txn = json.loads(msg['obj_str'], object_hook=Transaction.unserialize_object)
-        return txn
 
-    @staticmethod
-    def serialize_instance(obj):
-        d = vars(obj)
-        return d
-
-    @staticmethod
-    def unserialize_object(d):
-        obj = Transaction.__new__(Transaction)  # Make instance without calling __init__
+        d = json.loads(msg[3:])
+        obj = Transaction.__new__(Transaction)
         for key, value in d.items():
             setattr(obj, key, value)
         return obj
@@ -344,30 +294,20 @@ class PingMessage:
         """
         Returns (bytes): bytes representing the object.
         """
-        obj_str = json.dumps(self, default=PingMessage.serialize_instance)
-        s = json.dumps({'msg_type': 'PIN', 'obj_str': obj_str})
-        return s.encode()
+        obj_str = json.dumps(self.__dict__)
+        return b'PIN' + obj_str.encode()
 
     @staticmethod
     def unserialize(msg):
         """
         Args:
-            msg (json formatted str): PingMessage represented as a json formatted str.
+            msg (bytes): PingMessage represented in bytes.
 
         Returns:
              PingMessage: original PingMessage instance.
         """
-        ping = json.loads(msg['obj_str'], object_hook=PingMessage.unserialize_object)
-        return ping
-
-    @staticmethod
-    def serialize_instance(obj):
-        d = vars(obj)
-        return d
-
-    @staticmethod
-    def unserialize_object(d):
-        obj = PingMessage.__new__(PingMessage)  # Make instance without calling __init__
+        d = json.loads(msg[3:])
+        obj = PingMessage.__new__(PingMessage)
         for key, value in d.items():
             setattr(obj, key, value)
         return obj
@@ -386,30 +326,20 @@ class PongMessage:
         """
         Returns (bytes): bytes representing the object.
         """
-        obj_str = json.dumps(self, default=AckCommitMessage.serialize_instance)
-        s = json.dumps({'msg_type': 'PON', 'obj_str': obj_str})
-        return s.encode()
+        obj_str = json.dumps(self.__dict__)
+        return b'PON' + obj_str.encode()
 
     @staticmethod
     def unserialize(msg):
         """
         Args:
-            msg (json formatted str): PongMessage represented as a json formatted str.
+            msg (bytes): PongMessage represented in bytes.
 
         Returns:
              PongMessage: original PongMessage instance.
         """
-        pong = json.loads(msg['obj_str'], object_hook=PongMessage.unserialize_object)
-        return pong
-
-    @staticmethod
-    def serialize_instance(obj):
-        d = vars(obj)
-        return d
-
-    @staticmethod
-    def unserialize_object(d):
-        obj = PongMessage.__new__(PongMessage)  # Make instance without calling __init__
+        d = json.loads(msg[3:])
+        obj = PongMessage.__new__(PongMessage)
         for key, value in d.items():
             setattr(obj, key, value)
         return obj

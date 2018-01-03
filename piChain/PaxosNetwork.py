@@ -2,7 +2,7 @@
 """
 
 import logging
-import json
+import ujson as json
 import time
 import sys
 
@@ -70,10 +70,10 @@ class Connection(LineReceiver):
         Args:
             line (bytes): The line received. A bytes instance containing a JSON document.
         """
-        msg = json.loads(line)  # deserialize the line to a python object
-        msg_type = msg['msg_type']
+        msg_type = line[:3].decode()
 
         if msg_type == 'HEL':
+            msg = json.loads(line[3:])
             # handle handshake message
             peer_node_id = msg['nodeid']
             logging.info('Handshake from %s with peer_node_id = %s ', str(self.transport.getPeer()), peer_node_id)
@@ -90,6 +90,7 @@ class Connection(LineReceiver):
             self.send_hello_ack()
 
         elif msg_type == 'ACK':
+            msg = json.loads(line[3:])
             # handle handshake acknowledgement
             peer_node_id = msg['nodeid']
             logging.info('Handshake ACK from %s with peer_node_id = %s ', str(self.transport.getPeer()), peer_node_id)
@@ -103,28 +104,28 @@ class Connection(LineReceiver):
                     self.lc_ping.start(20, now=True)
 
         elif msg_type == 'PIN':
-            obj = PingMessage.unserialize(msg)
+            obj = PingMessage.unserialize(line)
             pong = PongMessage(obj.time)
             data = pong.serialize()
             self.sendLine(data)
 
         else:
-            self.connection_manager.message_callback(msg_type, msg, self)
+            self.connection_manager.message_callback(msg_type, line, self)
 
     def send_hello(self):
         """ Send hello/handshake message s.t other node gets to know this node.
         """
         # Serialize obj to a JSON formatted str
-        s = json.dumps({'msg_type': 'HEL', 'nodeid': self.node_id})
+        s = json.dumps({'nodeid': self.node_id})
 
         # str.encode() returns encoded version of string as a bytes object (utf-8 encoding)
-        self.sendLine(s.encode())
+        self.sendLine(b'HEL' + s.encode())
 
     def send_hello_ack(self):
         """ Send hello/handshake acknowledgement message s.t other node also has a chance to add connection.
         """
-        s = json.dumps({'msg_type': 'ACK', 'nodeid': self.node_id})
-        self.sendLine(s.encode())
+        s = json.dumps({'nodeid': self.node_id})
+        self.sendLine(b'ACK' + s.encode())
 
     def send_ping(self):
         """Send ping message to estimate RTT.
@@ -206,7 +207,7 @@ class ConnectionManager(Factory):
             msg_type (str): 3 char description of message type.
         """
         logging.debug('broadcast: %s', msg_type)
-        logging.debug('size = %s', str(sys.getsizeof(obj.serialize())))
+        # logging.debug('size = %s', str(sys.getsizeof(obj.serialize())))
         logging.debug('time = %s', str(time.time()))
 
         # go over all connections in self.peers and call sendLine on them

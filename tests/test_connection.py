@@ -39,21 +39,20 @@ class TestConnection(unittest.TestCase):
         """ Test receipt of a handshake message.
         """
         peer_node_id = '0'
-        s = json.dumps({'msg_type': 'HEL', 'nodeid': peer_node_id})
-        self.proto.lineReceived(s)
+        s = json.dumps({'nodeid': peer_node_id})
+        self.proto.lineReceived(b'HEL' + s.encode())
 
         self.assertEqual(self.proto.peer_node_id, peer_node_id)
         self.assertIn(peer_node_id, self.proto.connection_manager.peers)
 
-        msg = json.loads(self.transport.value())
-        self.assertEqual(msg['msg_type'], 'ACK')
+        self.assertEqual(b'ACK', self.transport.value()[:3])
 
     def test_handshake_ack(self):
         """ Test receipt of a handshake acknowledgement message.
         """
         peer_node_id = '0'
-        s = json.dumps({'msg_type': 'ACK', 'nodeid': peer_node_id})
-        self.proto.lineReceived(s)
+        s = json.dumps({'nodeid': peer_node_id})
+        self.proto.lineReceived(b'ACK' + s.encode())
 
         self.assertEqual(self.proto.peer_node_id, peer_node_id)
         self.assertIn(peer_node_id, self.proto.connection_manager.peers)
@@ -170,8 +169,7 @@ class TestConnection(unittest.TestCase):
         s = ping.serialize()
         self.proto.lineReceived(s)
 
-        s = json.loads(self.proto.transport.value())
-        obj = PongMessage.unserialize(s)
+        obj = PongMessage.unserialize(self.proto.transport.value())
         self.assertEqual(obj.time, timestamp)
 
     def test_broadcast(self):
@@ -182,12 +180,12 @@ class TestConnection(unittest.TestCase):
         proto2.makeConnection(transport2)
 
         # peer 1 connects/sends hello handshake
-        s = json.dumps({'msg_type': 'HEL', 'nodeid': '1'})
-        self.proto.lineReceived(s.encode())
+        s = json.dumps({'nodeid': '1'})
+        self.proto.lineReceived(b'HEL' + s.encode())
 
         # peer 2 connects/sends hello handshake
-        s = json.dumps({'msg_type': 'HEL', 'nodeid': '2'})
-        proto2.lineReceived(s.encode())
+        s = json.dumps({'nodeid': '2'})
+        proto2.lineReceived(b'HEL' + s.encode())
 
         # clear the transport
         self.proto.transport.clear()
@@ -196,11 +194,9 @@ class TestConnection(unittest.TestCase):
         rbm = RequestBlockMessage(3)
         self.node.broadcast(rbm, 'RQB')
 
-        s = json.loads(self.proto.transport.value())
-        obj = RequestBlockMessage.unserialize(s)
+        obj = RequestBlockMessage.unserialize(self.proto.transport.value())
 
-        s2 = json.loads(proto2.transport.value())
-        obj2 = RequestBlockMessage.unserialize(s2)
+        obj2 = RequestBlockMessage.unserialize(proto2.transport.value())
 
         self.assertEqual(rbm.block_id, obj.block_id)
         self.assertEqual(rbm.block_id, obj2.block_id)
@@ -209,7 +205,6 @@ class TestConnection(unittest.TestCase):
         rbm = RequestBlockMessage(3)
         self.node.respond(rbm, self.proto)
 
-        s = json.loads(self.proto.transport.value())
-        obj = RequestBlockMessage.unserialize(s)
+        obj = RequestBlockMessage.unserialize(self.proto.transport.value())
 
         self.assertEqual(rbm.block_id, obj.block_id)

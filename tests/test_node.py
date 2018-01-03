@@ -159,7 +159,7 @@ class TestNode(TestCase):
 
         self.node.blocktree.head_block = b4
 
-        self.node.new_txs = [Transaction(1, 'a', 6), 6]
+        self.node.new_txs = [Transaction(1, 'a', 6)]
 
         c = self.node.create_block()
         assert len(self.node.new_txs) == 0

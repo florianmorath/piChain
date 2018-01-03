@@ -2,8 +2,7 @@
  the last committed block and the head block of the tree. It provides operations like adding blocks, checking
  for the validity of a new block and checking if a block is an ancestor of another one."""
 
-import logging
-import json
+import ujson as json
 import os
 
 import plyvel
@@ -50,28 +49,23 @@ class Blocktree:
         # load blocks and counter (after crash)
         for key, value in self.db:
             if key == b'committed_block':
-                msg = json.loads(value)
-                block = Block.unserialize(msg)
+                block = Block.unserialize(value)
                 self.committed_block = block
             elif key == b'head_block':
-                msg = json.loads(value)
-                block = Block.unserialize(msg)
+                block = Block.unserialize(value)
                 self.head_block = block
             elif key == b'counter':
                 self.counter = int(value.decode())
             elif key == b'genesis':
-                msg = json.loads(value)
-                block = Block.unserialize(msg)
+                block = Block.unserialize(value)
                 self.genesis = block
             elif key == b'committed_blocks':
                 block_ids = json.loads(value.decode())
                 self.committed_blocks = block_ids
-                logging.debug(self.committed_blocks)
             elif key != b's_max_block_depth' and key != b's_prop_block' and key != b's_supp_block':
                 # block_id -> block
                 block_id = int(key.decode())
-                msg = json.loads(value)
-                block = Block.unserialize(msg)
+                block = Block.unserialize(value)
                 self.nodes.update({block_id: block})
 
     def ancestor(self, block_a, block_b):
