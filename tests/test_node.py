@@ -27,7 +27,12 @@ class TestNode(TestCase):
                 print(e)
                 raise
 
-        self.node = Node(0, {})
+        peers = {
+            '0': {'ip': '127.0.0.1', 'port': 7982},
+            '1': {'ip': '127.0.0.1', 'port': 7981},
+            '2': {'ip': '127.0.0.1', 'port': 7980}
+        }
+        self.node = Node(0, peers)
         self.node.blocktree.db = MagicMock()
 
     def test_receive_paxos_message_try(self):

@@ -1,7 +1,7 @@
 """This module defines the representation of all objects that need to be sent over the network and thus need to be
 serialized and unserialized."""
 
-import ujson as json
+import json
 
 
 class PaxosMessage:
@@ -98,6 +98,7 @@ class RespondBlockMessage:
         Returns (bytes): bytes representing the object.
         """
         block_list = []
+        obj_str = ''
         for b in self.blocks:
             block_list.append(b.serialize().decode())
             obj_str = json.dumps(block_list)
@@ -192,7 +193,7 @@ class Block:
         return self.block_id == other.block_id
 
     def __hash__(self):
-        return 0
+        return hash(self.block_id)
 
     def serialize(self):
         """

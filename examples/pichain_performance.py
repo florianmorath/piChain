@@ -15,7 +15,7 @@ from twisted.protocols.basic import LineReceiver
 # Number of seconds, the script will send txns
 ITERATIONS = 5
 # Requests per second
-RPS = 350
+RPS = 4500
 # Keeps track of how many transactions have been committed
 txn_count = 0
 # Variables used for timing

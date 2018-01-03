@@ -5,7 +5,7 @@ It implements the Node class which represents a paxos node and specifies how a p
 import random
 import logging
 import time
-import ujson as json
+import json
 
 from twisted.internet.task import deferLater
 
@@ -27,7 +27,7 @@ EPSILON = 0.001
 GENESIS = Block(-1, None, [], 0)
 GENESIS.depth = 0
 
-# logging.disable(logging.DEBUG)
+logging.disable(logging.DEBUG)
 
 
 class Node(ConnectionManager):
@@ -42,7 +42,7 @@ class Node(ConnectionManager):
     Attributes:
         state (int): 0,1 or 2 corresponds to QUICK, MEDIUM or SLOW.
         blocktree (Blocktree): The blocktree which this node owns.
-        known_txs (set): all txs seen so far.
+        known_txs (set): all txs seen so far. Set of txn ids.
         new_txs (list): txs not yet in a block, behaving like a queue.
         oldest_txn (Transaction): txn which started a timeout.
         s_max_block_depth (int):  depth of deepest block seen in round 1 (like T_max).
@@ -199,6 +199,7 @@ class Node(ConnectionManager):
                 propose.new_block = self.c_new_block.block_id
 
                 self.broadcast(propose, 'PROPOSE')
+                self.receive_paxos_message(propose, None)
 
         elif message.msg_type == 'PROPOSE':
             # if did not receive a try message with a deeper new block in mean time can store proposed block on server
@@ -267,10 +268,10 @@ class Node(ConnectionManager):
             txn (Transaction): Transaction received.
         """
         # check if txn has already been seen
-        if txn not in self.known_txs:
+        if txn.txn_id not in self.known_txs:
             logging.debug('txn has not yet been seen')
             # add txn to set of seen txs
-            self.known_txs.add(txn)
+            self.known_txs.add(txn.txn_id)
 
             # timeout handling
             self.new_txs.append(txn)
@@ -398,8 +399,8 @@ class Node(ConnectionManager):
                 parent = self.blocktree.nodes.pop(parent_block_id, None)
                 # also delete txns
                 if parent is not None:
-                    txns_set = set(parent.txs)
-                    self.known_txs -= txns_set
+                    for txn in parent.txs:
+                        self.known_txs.discard(txn.txn_id)
 
             self.blocktree.nodes.update({GENESIS.block_id: GENESIS})
 
@@ -428,7 +429,8 @@ class Node(ConnectionManager):
             # go from target to common ancestor: remove txs from to_broadcast and new_txs, add to known_txs
             b = target
             while b != common_ancestor:
-                self.known_txs |= set(b.txs)
+                for tx in b.txs:
+                    self.known_txs.add(tx.txn_id)
                 for tx in b.txs:
                     if tx in self.new_txs:
                         self.new_txs.remove(tx)
@@ -474,6 +476,7 @@ class Node(ConnectionManager):
             # broadcast confirmation of committing this block
             acm = AckCommitMessage(block.block_id)
             self.broadcast(acm, 'ACM')
+            self.receive_ack_commit_message(acm)
 
             # iterate over blocks from currently committed block to last committed block
             # need to commit all those blocks (not just currently committed block)
@@ -654,6 +657,7 @@ class Node(ConnectionManager):
                 try_msg.last_committed_block = self.blocktree.committed_block.block_id
                 try_msg.new_block = self.c_new_block.block_id
                 self.broadcast(try_msg, 'TRY')
+                self.receive_paxos_message(try_msg, None)
             else:
                 logging.debug('quick proposing')
                 # create propose message directly
@@ -661,6 +665,7 @@ class Node(ConnectionManager):
                 propose.com_block = self.c_current_committable_block.block_id
                 propose.new_block = GENESIS.block_id
                 self.broadcast(propose, 'PROPOSE')
+                self.receive_paxos_message(propose, None)
 
         elif self.state == QUICK and self.c_commit_running:
             # try to commit block later
