@@ -27,7 +27,9 @@ EPSILON = 0.001
 GENESIS = Block(-1, None, [], 0)
 GENESIS.depth = 0
 
-logging.basicConfig(level=logging.DEBUG)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(level=logging.DEBUG)
 if not TESTING:
     logging.disable(logging.DEBUG)
 
@@ -125,7 +127,7 @@ class Node(ConnectionManager):
             message (PaxosMessage): Message received.
             sender (Connection): Connection instance of the sender (None if sender is this Node).
         """
-        logging.debug('receive message type = %s', message.msg_type)
+        logger.debug('receive message type = %s', message.msg_type)
         if message.msg_type == 'TRY':
             # make sure last commited block of sender is also committed by this node
             last_committed_block = self.get_block(message.last_committed_block)
@@ -166,7 +168,7 @@ class Node(ConnectionManager):
             # check if message is not outdated
             if message.request_seq != self.c_request_seq:
                 # outdated message
-                logging.debug('TRY_OK outdated')
+                logger.debug('TRY_OK outdated')
                 return
 
             # if TRY_OK message contains a propose block, we will support it if it is the first received
@@ -271,7 +273,7 @@ class Node(ConnectionManager):
         """
         # check if txn has already been seen
         if txn.txn_id not in self.known_txs:
-            logging.debug('txn has not yet been seen')
+            logger.debug('txn has not yet been seen')
             # add txn to set of seen txs
             self.known_txs.add(txn.txn_id)
 
@@ -280,10 +282,10 @@ class Node(ConnectionManager):
             if len(self.new_txs) == 1:
                 self.oldest_txn = txn
                 # start a timeout
-                logging.debug('start timeout')
+                logger.debug('start timeout')
                 deferLater(self.reactor, self.get_patience(), self.timeout_over, txn)
         else:
-            logging.debug('txn has already been seen')
+            logger.debug('txn has already been seen')
 
     def receive_block(self, block):
         """React on a received `block`.
@@ -293,18 +295,18 @@ class Node(ConnectionManager):
         """
         # make sure block is reachable
         if not self.reach_genesis_block(block):
-            logging.debug('block not reachable')
+            logger.debug('block not reachable')
             return
 
         # demote node if necessary
         if self.blocktree.head_block < block or block.creator_state == QUICK:
             if self.state != SLOW:
-                logging.debug('Demoted to slow. Previous State = %s', str(self.state))
+                logger.debug('Demoted to slow. Previous State = %s', str(self.state))
             self.state = SLOW
             self.c_quick_proposing = False
 
         if not self.blocktree.valid_block(block):
-            logging.debug('block invalid')
+            logger.debug('block invalid')
             return
 
         self.move_to_block(block)
@@ -355,7 +357,7 @@ class Node(ConnectionManager):
 
         """
         rtt = round(time.time() - message.time, 3)  # in seconds
-        logging.debug('PongMessage received, rtt = %s', str(rtt))
+        logger.debug('PongMessage received, rtt = %s', str(rtt))
 
         # update RTT's
         self.rtts.update({peer_node_id: rtt})
@@ -383,11 +385,11 @@ class Node(ConnectionManager):
 
         # check if all nodes have committed this block
         if self.blocktree.ack_commits.get(block_id) == self.n:
-            logging.debug('perform genesis block change')
+            logger.debug('perform genesis block change')
 
             # this block will be the new genesis block
             self.blocktree.genesis = self.blocktree.nodes.get(block_id)
-            logging.debug('new genesis block id = %s', str(self.blocktree.genesis.block_id))
+            logger.debug('new genesis block id = %s', str(self.blocktree.genesis.block_id))
 
             # write it to db
             block_id_bytes = str(self.blocktree.genesis.block_id).encode()
@@ -488,7 +490,7 @@ class Node(ConnectionManager):
                 block_list.append(b)
                 b = self.blocktree.nodes.get(b.parent_block_id)
                 if b is None:
-                    logging.debug('block to be committed is not descendent of last committed block -> error')
+                    logger.debug('block to be committed is not descendent of last committed block -> error')
                     return
 
             block_list.reverse()
@@ -503,8 +505,8 @@ class Node(ConnectionManager):
                 block_ids_bytes = block_ids_str.encode()
                 self.blocktree.db.put(b'committed_blocks', block_ids_bytes)
 
-                logging.debug('committing a block: with block id = %s', str(b.block_id))
-                logging.debug('committed blocks so far: %s', str(self.blocktree.committed_blocks))
+                logger.debug('committing a block: with block id = %s', str(b.block_id))
+                logger.debug('committed blocks so far: %s', str(self.blocktree.committed_blocks))
 
                 # call callable of app service
                 commands = []
@@ -553,7 +555,7 @@ class Node(ConnectionManager):
             Block: The block that was created.
 
         """
-        logging.debug('create a block')
+        logger.debug('create a block')
         # store depth of current head_block (will be parent of new block)
         d = self.blocktree.head_block.depth
 
@@ -564,8 +566,8 @@ class Node(ConnectionManager):
             # create a new, empty list (do not use clear!)
             self.new_txs = []
         else:
-            logging.debug('Cannot fit all transactions in the block that is beeing created. Remaining transactions '
-                          'will be included in the next block.')
+            logger.debug('Cannot fit all transactions in the block that is beeing created. Remaining transactions '
+                         'will be included in the next block.')
             txns_include = self.new_txs[:MAX_TXN_COUNT]
             b = Block(self.id, self.blocktree.head_block.block_id, txns_include, self.blocktree.counter)
             self.new_txs = self.new_txs[MAX_TXN_COUNT:]
@@ -582,12 +584,12 @@ class Node(ConnectionManager):
         # promote node
         if self.state != QUICK:
             self.state = max(QUICK, self.state - 1)
-            logging.debug('Got promoted. State = %s', str(self.state))
+            logger.debug('Got promoted. State = %s', str(self.state))
 
         # add state of creator node to block
         b.creator_state = self.state
 
-        logging.debug('created block with block id = %s', str(b.block_id))
+        logger.debug('created block with block id = %s', str(b.block_id))
 
         return b
 
@@ -623,7 +625,7 @@ class Node(ConnectionManager):
             txn (Transaction): This transaction triggered the timeout.
 
         """
-        logging.debug('timeout_over called')
+        logger.debug('timeout_over called')
         if txn in self.new_txs:
             # create a new block
             b = self.create_block()
@@ -641,7 +643,7 @@ class Node(ConnectionManager):
 
         #  if quick node then start a new instance of paxos
         if self.state == QUICK and not self.c_commit_running:
-            logging.debug('start an new instance of paxos')
+            logger.debug('start an new instance of paxos')
             self.c_commit_running = True
             self.c_votes = 0
             self.c_request_seq += 1
@@ -661,7 +663,7 @@ class Node(ConnectionManager):
                 self.broadcast(try_msg, 'TRY')
                 self.receive_paxos_message(try_msg, None)
             else:
-                logging.debug('quick proposing')
+                logger.debug('quick proposing')
                 # create propose message directly
                 propose = PaxosMessage('PROPOSE', self.c_request_seq)
                 propose.com_block = self.c_current_committable_block.block_id
@@ -671,7 +673,7 @@ class Node(ConnectionManager):
 
         elif self.state == QUICK and self.c_commit_running:
             # try to commit block later
-            logging.debug('commit is already running, try to commit later')
+            logger.debug('commit is already running, try to commit later')
             deferLater(self.reactor, 2 * self.expected_rtt + MAX_COMMIT_TIME, self.start_commit_process)
 
     def readjust_timeout(self):
@@ -686,8 +688,8 @@ class Node(ConnectionManager):
         if self.c_commit_running and self.c_request_seq == commit_counter:
             self.c_commit_running = False
             self.c_quick_proposing = False
-            logging.debug('current commit terminated because did not receive enough acknowlegements')
-            logging.debug('try to commit again')
+            logger.debug('current commit terminated because did not receive enough acknowlegements')
+            logger.debug('try to commit again')
             self.start_commit_process()
 
     def get_block(self, block_id):

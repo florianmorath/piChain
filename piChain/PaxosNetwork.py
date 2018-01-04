@@ -17,6 +17,10 @@ from piChain.messages import RequestBlockMessage, Transaction, Block, RespondBlo
     PongMessage, AckCommitMessage
 
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+
 class Connection(LineReceiver):
     """This class keeps track of information about a connection with another node. It is a subclass of `LineReceiver`
     i.e each line that's received becomes a callback to the method `lineReceived`.
@@ -44,17 +48,17 @@ class Connection(LineReceiver):
         self.MAX_LENGTH = 10000000
 
     def connectionMade(self):
-        logging.debug('Connected to %s.', str(self.transport.getPeer()))
+        logger.debug('Connected to %s.', str(self.transport.getPeer()))
 
     def connectionLost(self, reason=connectionDone):
-        logging.debug('Lost connection to %s with id %s: %s',
+        logger.debug('Lost connection to %s with id %s: %s',
                       str(self.transport.getPeer()), self.peer_node_id, reason.getErrorMessage())
 
         # remove peer_node_id from connection_manager.peers
         if self.peer_node_id is not None and self.peer_node_id in self.connection_manager.peers_connection:
             self.connection_manager.peers_connection.pop(self.peer_node_id)
             if not self.connection_manager.reconnect_loop.running:
-                logging.debug('Connection synchronization restart...')
+                logger.debug('Connection synchronization restart...')
                 self.connection_manager.reconnect_loop.start(10)
 
         # stop the ping loop
@@ -73,7 +77,7 @@ class Connection(LineReceiver):
             msg = json.loads(line[3:])
             # handle handshake message
             peer_node_id = msg['nodeid']
-            logging.debug('Handshake from %s with peer_node_id = %s ', str(self.transport.getPeer()), peer_node_id)
+            logger.debug('Handshake from %s with peer_node_id = %s ', str(self.transport.getPeer()), peer_node_id)
 
             if peer_node_id not in self.connection_manager.peers_connection:
                 self.connection_manager.peers_connection.update({peer_node_id: self})
@@ -90,7 +94,7 @@ class Connection(LineReceiver):
             msg = json.loads(line[3:])
             # handle handshake acknowledgement
             peer_node_id = msg['nodeid']
-            logging.debug('Handshake ACK from %s with peer_node_id = %s ', str(self.transport.getPeer()), peer_node_id)
+            logger.debug('Handshake ACK from %s with peer_node_id = %s ', str(self.transport.getPeer()), peer_node_id)
 
             if peer_node_id not in self.connection_manager.peers_connection:
                 self.connection_manager.peers_connection.update({peer_node_id: self})
@@ -185,15 +189,15 @@ class ConnectionManager(Factory):
 
         if not activated:
             self.reconnect_loop.stop()
-            logging.info('Connection synchronization finished: Connected to all peers')
+            logger.info('Connection synchronization finished: Connected to all peers')
 
     def connections_report(self):
-        logging.debug('"""""""""""""""""')
-        logging.debug('Connections: local node id = %s', str(self.id))
+        logger.debug('"""""""""""""""""')
+        logger.debug('Connections: local node id = %s', str(self.id))
         for key, value in self.peers_connection.items():
-            logging.debug('Connection from %s (%s) to %s (%s).',
+            logger.debug('Connection from %s (%s) to %s (%s).',
                           value.transport.getHost(), str(self.id), value.transport.getPeer(), value.peer_node_id)
-        logging.debug('"""""""""""""""""')
+            logger.debug('"""""""""""""""""')
 
     def broadcast(self, obj, msg_type):
         """
@@ -203,8 +207,8 @@ class ConnectionManager(Factory):
             obj: an instance of type Message, Block or Transaction.
             msg_type (str): 3 char description of message type.
         """
-        logging.debug('broadcast: %s', msg_type)
-        logging.debug('time = %s', str(time.time()))
+        logger.debug('broadcast: %s', msg_type)
+        logger.debug('time = %s', str(time.time()))
 
         # go over all connections in self.peers and call sendLine on them
         data = obj.serialize()
@@ -223,17 +227,17 @@ class ConnectionManager(Factory):
             obj: an instance of type Message, Block or Transaction.
             sender (Connection): The connection between this node and the sender of the message.
         """
-        logging.debug('respond')
-        logging.debug('time = %s', str(time.time()))
+        logger.debug('respond')
+        logger.debug('time = %s', str(time.time()))
         data = obj.serialize()
-        logging.debug('size = %s', str(sys.getsizeof(data)))
+        logger.debug('size = %s', str(sys.getsizeof(data)))
         sender.sendLine(data)
 
     def parse_msg(self, msg_type, msg, sender):
-        logging.debug('time = %s', str(time.time()))
+        logger.debug('time = %s', str(time.time()))
 
         if msg_type != 'PON':
-            logging.debug('parse_msg called with msg_type = %s', msg_type)
+            logger.debug('parse_msg called with msg_type = %s', msg_type)
         if msg_type == 'RQB':
             obj = RequestBlockMessage.unserialize(msg)
             self.receive_request_blocks_message(obj, sender)
@@ -258,7 +262,7 @@ class ConnectionManager(Factory):
 
     @staticmethod
     def handle_connection_error(failure, node_id):
-        logging.debug('Peer not online (%s): peer node id = %s ', str(failure.type), node_id)
+        logger.debug('Peer not online (%s): peer node id = %s ', str(failure.type), node_id)
 
     # all the methods which will be called from parse_msg according to msg_type
     def receive_request_blocks_message(self, req, sender):
@@ -293,7 +297,7 @@ class ConnectionManager(Factory):
 
         # "client part" -> connect to all servers -> add handshake callback
         self.reconnect_loop = task.LoopingCall(self.connect_to_nodes, str(self.id))
-        logging.debug('Connection synchronization start...')
+        logger.debug('Connection synchronization start...')
         deferred = self.reconnect_loop.start(0.1, True)
         deferred.addErrback(log.err)
 
