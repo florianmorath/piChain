@@ -326,10 +326,10 @@ class Node(ConnectionManager):
             # add five ancestors to blocks
             b = self.blocktree.nodes.get(req.block_id)
             i = 0
-            while i < 5 and b != self.blocktree.genesis:
+            while i < 5 and b is not None and b != self.blocktree.genesis:
                 i = i + 1
                 b = self.blocktree.nodes.get(b.parent_block_id)
-                if b != self.blocktree.genesis:
+                if b is not None and b != self.blocktree.genesis:
                     blocks.append(b)
 
             # send blocks back
