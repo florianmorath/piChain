@@ -29,7 +29,7 @@ GENESIS.depth = 0
 
 
 logger = logging.getLogger(__name__)
-logger.setLevel(level=logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 if not TESTING:
     logging.disable(logging.DEBUG)
 
