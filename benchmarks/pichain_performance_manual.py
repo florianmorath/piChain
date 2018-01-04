@@ -1,7 +1,10 @@
-"""This module is used to test the performance of the pichain package. It connect to a node instance and sends a
-predefined number of transactions per seconds to see how many RPS (Requests per second) can be handled.
+"""This module is used to test the performance of the pichain package. It connect to a database node instance and runs a
+predefined number of seconds. Each second it sends a predefined number of transactions. After all transactions have been
+committed, the time elapsed is computed and printed to the standard output.
 
-Note: This script requires already running pichain nodes where one node listens on (localhost: 8000) for connections.
+Note: This script requires already running distributed_db processes (see module examples/distributed_db.py) where a
+process listens on (localhost: 8000) for connections.
+Note: set TESTING to False inside config.py to reach optimal performance.
 """
 
 import time
@@ -61,7 +64,6 @@ class Connection(LineReceiver):
         """Sends a predefined number (= RPS) of transactions as a batch to the node."""
         print('start iteration %s' % str(i))
         for j in range(0, RPS):
-            # deferLater(reactor, j/RPS, self.send_msg, i, j)
             self.send_msg(i, j)
         print('iteration %s finished' % str(i))
         print('sleep')
