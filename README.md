@@ -12,22 +12,20 @@ It is recommended to install piChain inside a virtual environment.
 
 Setup a virtual environment:
 ```
-$ cd ~
-$ virtualenv --python=python3 <venv-name>
-$ cd <venv-name>
-$ source bin/activate
+virtualenv --python=python3 <venv-name>
+source <venv-name>/bin/activate
 ```
 Install piChain:
 ```
-$ git clone https://github.com/florianmorath/piChain.git
-$ cd piChain
-$ pip install -r requirements.txt
-$ python setup.py install 
+git clone https://github.com/florianmorath/piChain.git
+cd piChain
+pip install -r requirements.txt
+python setup.py install 
 ```
 note: before running `pip install -r requirements.txt` you need to have a leveldb instance installed. The installation process depends on the OS. For macOS do the following:
 ```
-$ brew install leveldb
-$ CFLAGS='-mmacosx-version-min=10.7 -stdlib=libc++' pip install --no-use-wheel plyvel
+brew install leveldb
+CFLAGS='-mmacosx-version-min=10.7 -stdlib=libc++' pip install --no-use-wheel plyvel
 ```
 
 ## Usage
@@ -63,6 +61,8 @@ Transactions can be committed by calling `make_txn('command')` on a Node instanc
 ```python
 node.make_txn('command')
 ```
+## More information
+- There is a distributed database implementation in the examples folder to demonstrate an application of the pichain package. 
 
 ## Publications
 - [piChain: When a Blockchain meets Paxos](https://www.tik.ee.ethz.ch/file/14b0ed803c27d585cc06ecd91164c48a/piChain.pdf)
