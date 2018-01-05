@@ -46,6 +46,7 @@ class Connection(LineReceiver):
 
         # init max message size to 10 Megabyte
         self.MAX_LENGTH = 10000000
+        self.delimiter = b'\r\n\n'
 
     def connectionMade(self):
         logger.debug('Connected to %s.', str(self.transport.getPeer()))

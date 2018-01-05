@@ -14,15 +14,17 @@ from twisted.protocols.basic import LineReceiver
 
 
 # Initial requests per second rate
-RPS = 2000
+RPS = 4000
 # Step size in which RPS is increased
-step_size = 50
-# sample size per RPS
-sample_size = 1
+step_size = 500
+# number of seconds transactions are send at a specific RPS rate
+running_time_per_RPS = 10
 # Keeps track of how many transactions have been committed
 txn_count = 0
 # Keeps track of number of seconds the script is running
 iterations = 0
+# small tolerance is allowed
+tolerance = 0.1
 
 
 class Connection(LineReceiver):
@@ -44,23 +46,24 @@ class Connection(LineReceiver):
         global RPS
         global txn_count
 
-        # verify that all txns have been committed
-        if txn_count == RPS:
-            # update global variables and restart process
-            iterations += 1
-            if iterations % sample_size == 0:
+        iterations += 1
+        if iterations % running_time_per_RPS == 0:
+            # verify that all txns have been committed
+            if txn_count >= RPS*running_time_per_RPS*(1-tolerance):
+                # update global variables and restart process
                 RPS += step_size
-            txn_count = 0
-            self.send_txns()
+                txn_count = 0
+                self.send_txns()
+            else:
+                print(txn_count)
+                print('performance test finished')
+                print('piChain can handle %s RPS' % str(RPS-step_size))
         else:
-            print('performance test finished')
-            print('piChain can handle %s RPS' % str(RPS-step_size))
+            self.send_txns()
 
     def send_txns(self):
         """Initiates the process of transactions beeing send."""
-
-        current_iter = iterations
-        self.send_batch(current_iter)
+        self.send_batch(iterations)
         deferLater(reactor, 1, self.verify_txns_committed)
 
     def send_batch(self, i):
