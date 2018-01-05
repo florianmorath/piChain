@@ -17,6 +17,10 @@ from twisted.internet import reactor
 
 from piChain.PaxosLogic import Node
 
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 
 class DatabaseProtocol(LineReceiver):
     """Object representing a connection with another node."""
@@ -30,11 +34,11 @@ class DatabaseProtocol(LineReceiver):
 
     def connectionMade(self):
         self.factory.connections.update({self.transport.getPeer(): self})
-        logging.debug('client connection made')
+        logger.debug('client connection made')
 
     def connectionLost(self, reason=connectionDone):
         self.factory.connections.pop(self.transport.getPeer())
-        logging.debug('client connection lost')
+        logger.debug('client connection lost')
 
     def lineReceived(self, line):
         """ The `line` represents the database operation send by a client. Put and delete operations have to be
@@ -45,7 +49,7 @@ class DatabaseProtocol(LineReceiver):
             line (bytes): received command str encoded in bytes.
         """
         txn_command = line.decode()
-        logging.debug('received command from client: %s', txn_command)
+        logger.debug('received command from client: %s', txn_command)
 
         c_list = txn_command.split()
         if c_list[0] == 'put' or c_list[0] == 'delete':
@@ -75,7 +79,7 @@ class DatabaseFactory(Factory):
         node (Node): A Node instance representing the local node.
         db (pyvel db): A plyvel db instance used to store the key-value pairs (python implementation of levelDB).
     """
-    def __init__(self, node_index):
+    def __init__(self, node_index, c_size):
         """Setup of a Node instance: A peers dictionary containing an (ip,port) pair for each node must be defined. The
         `node_index` argument defines the node that will run locally. The `tx_committed` field of the Node instance is a
         callable that is called once a block has been committed. By calling `start_server()` on the Node instance the
@@ -83,13 +87,13 @@ class DatabaseFactory(Factory):
 
         Args:
             node_index (int):  Index of node in the given peers dict.
+            c_size (int): Cluster size.
         """
         self.connections = {}
-        peers = {
-            '0': {'ip': '127.0.0.1', 'port': 7982},
-            '1': {'ip': '127.0.0.1', 'port': 7981},
-            '2': {'ip': '127.0.0.1', 'port': 7980}
-        }
+        peers = {}
+        for i in range(0, c_size):
+            peers.update({str(i): {'ip': 'localhost', 'port': (7000 + i)}})
+
         self.node = Node(node_index, peers)
 
         self.node.tx_committed = self.tx_committed
@@ -135,11 +139,12 @@ def main():
     # get node index as an argument
     parser = argparse.ArgumentParser()
     parser.add_argument("node_index", help='Index of node in the given peers dict.')
+    parser.add_argument("clustersize")
     args = parser.parse_args()
     node_index = args.node_index
-
+    cluster_size = args.clustersize
     # setup node instance
-    db_factory = DatabaseFactory(int(node_index))
+    db_factory = DatabaseFactory(int(node_index), int(cluster_size))
 
     # Any of the nodes may receive commands
     if node_index == '0':

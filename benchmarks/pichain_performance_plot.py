@@ -61,11 +61,12 @@ def compute_rps_limit(c_size):
         db_procs.append(NodeProcess("db node %i" % i, path, str(i), str(c_size)))
         time.sleep(0.1)
 
+    time.sleep(1)
     # start automated performance test process
     path = os.path.dirname(os.path.abspath(__file__)) + '/pichain_performance_automated.py'
     performance_proc = NodeProcess("performance node", path)
 
-    time.sleep(20)
+    time.sleep(120)
 
     # terminate processes
     for node_proc in db_procs:
@@ -105,7 +106,7 @@ def main():
     plt.ylabel('RPS')
     plt.xlabel('Cluster size')
     axes = plt.gca()
-    axes.set_ylim([0, 6000])
+    axes.set_ylim([0, max(RPS_MAX)+1000])
     axes.xaxis.set_major_locator(MaxNLocator(integer=True))
 
     red_dot, = plt.plot(cluster_list, RPS_MAX, 'ro-')

@@ -14,9 +14,11 @@ from twisted.protocols.basic import LineReceiver
 
 
 # Initial requests per second rate
-RPS = 3000
+RPS = 2000
 # Step size in which RPS is increased
-step_size = 100
+step_size = 50
+# sample size per RPS
+sample_size = 1
 # Keeps track of how many transactions have been committed
 txn_count = 0
 # Keeps track of number of seconds the script is running
@@ -35,7 +37,7 @@ class Connection(LineReceiver):
     def connectionMade(self):
         self.send_txns()
 
-    def verify_txns_committed(self, current_iter):
+    def verify_txns_committed(self):
         """Verify that all transactions have been committed. If not stop, else initialize another round with increased
         RPS rate."""
         global iterations
@@ -43,10 +45,11 @@ class Connection(LineReceiver):
         global txn_count
 
         # verify that all txns have been committed
-        if txn_count == RPS and current_iter == iterations:
+        if txn_count == RPS:
             # update global variables and restart process
-            RPS += step_size
             iterations += 1
+            if iterations % sample_size == 0:
+                RPS += step_size
             txn_count = 0
             self.send_txns()
         else:
@@ -58,7 +61,7 @@ class Connection(LineReceiver):
 
         current_iter = iterations
         self.send_batch(current_iter)
-        deferLater(reactor, 1, self.verify_txns_committed, current_iter)
+        deferLater(reactor, 1, self.verify_txns_committed)
 
     def send_batch(self, i):
         """Sends a predefined number (= RPS) of transactions as a batch to the node."""

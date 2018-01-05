@@ -32,4 +32,4 @@ MAX_TXN_COUNT = 7500
 
 # If set to true will log all debug messages.
 # note: set it to False during a performance test.
-TESTING = True
+TESTING = False
