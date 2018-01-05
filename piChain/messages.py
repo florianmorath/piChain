@@ -1,7 +1,8 @@
 """This module defines the representation of all objects that need to be sent over the network and thus need to be
 serialized and unserialized."""
 
-import json
+import logging
+import cbor
 
 
 class PaxosMessage:
@@ -33,8 +34,10 @@ class PaxosMessage:
         """
         Returns (bytes): bytes representing the object.
         """
-        obj_str = json.dumps(self.__dict__)
-        return b'PAM' + obj_str.encode()
+        obj_list = [self.last_committed_block, self.com_block, self.supp_block, self.prop_block, self.new_block,
+                    self.request_seq, self.msg_type]
+        obj_bytes = cbor.dumps(obj_list)
+        return b'PAM' + obj_bytes
 
     @staticmethod
     def unserialize(msg):
@@ -45,10 +48,16 @@ class PaxosMessage:
         Returns:
              PaxosMessage: original PaxosMessage instance.
         """
-        d = json.loads(msg[3:])
+        obj_list = cbor.loads(msg[3:])
         obj = PaxosMessage.__new__(PaxosMessage)
-        for key, value in d.items():
-            setattr(obj, key, value)
+        setattr(obj, 'msg_type', obj_list.pop())
+        setattr(obj, 'request_seq', obj_list.pop())
+        setattr(obj, 'new_block', obj_list.pop())
+        setattr(obj, 'prop_block', obj_list.pop())
+        setattr(obj, 'supp_block', obj_list.pop())
+        setattr(obj, 'com_block', obj_list.pop())
+        setattr(obj, 'last_committed_block', obj_list.pop())
+        logging.debug(obj.__dict__)
         return obj
 
 
@@ -65,8 +74,7 @@ class RequestBlockMessage:
         """
         Returns (bytes): bytes representing the object.
         """
-        obj_str = json.dumps(self.__dict__)
-        return b'RQB' + obj_str.encode()
+        return b'RQB' + cbor.dumps(self.block_id)
 
     @staticmethod
     def unserialize(msg):
@@ -77,10 +85,10 @@ class RequestBlockMessage:
         Returns:
              RequestBlockMessage: original RequestBlockMessage instance.
         """
-        d = json.loads(msg[3:])
+        block_id = cbor.loads(msg[3:])
         obj = RequestBlockMessage.__new__(RequestBlockMessage)
-        for key, value in d.items():
-            setattr(obj, key, value)
+        setattr(obj, 'block_id', block_id)
+        logging.debug(obj.__dict__)
         return obj
 
 
@@ -97,12 +105,10 @@ class RespondBlockMessage:
         """
         Returns (bytes): bytes representing the object.
         """
-        block_list = []
-        obj_str = ''
+        blocks = []
         for b in self.blocks:
-            block_list.append(b.serialize().decode())
-            obj_str = json.dumps(block_list)
-        return b'RSB' + obj_str.encode()
+            blocks.append(b.serialize())
+        return b'RSB' + cbor.dumps(blocks)
 
     @staticmethod
     def unserialize(msg):
@@ -113,13 +119,13 @@ class RespondBlockMessage:
         Returns:
              RespondBlockMessage: original RespondBlockMessage instance.
         """
-        msg_list = json.loads(msg[3:])
+        obj_list = cbor.loads(msg[3:])
         blocks = []
-        for block in msg_list:
-            blocks.append(Block.unserialize(block.encode()))
-
+        for b in obj_list:
+            blocks.append(Block.unserialize(b))
         obj = RespondBlockMessage.__new__(RespondBlockMessage)
         setattr(obj, 'blocks', blocks)
+        logging.debug(obj.__dict__)
         return obj
 
 
@@ -136,8 +142,7 @@ class AckCommitMessage:
         """
         Returns (bytes): bytes representing the object.
         """
-        obj_str = json.dumps(self.__dict__)
-        return b'ACM' + obj_str.encode()
+        return b'ACM' + cbor.dumps(self.block_id)
 
     @staticmethod
     def unserialize(msg):
@@ -148,10 +153,10 @@ class AckCommitMessage:
         Returns:
              AckCommitMessage: original AckCommitMessage instance.
         """
-        d = json.loads(msg[3:])
+        block_id = cbor.loads(msg[3:])
         obj = AckCommitMessage.__new__(AckCommitMessage)
-        for key, value in d.items():
-            setattr(obj, key, value)
+        setattr(obj, 'block_id', block_id)
+        logging.debug(obj.__dict__)
         return obj
 
 
@@ -176,8 +181,8 @@ class Block:
         self.block_id = self.creator_id | (self.SEQ << 16)
         self.creator_state = None
         self.parent_block_id = parent_block_id
-        self.txs = txs
         self.depth = None
+        self.txs = txs
 
     def __lt__(self, other):
         """Compare two blocks by depth` and `creator_id`."""
@@ -199,14 +204,12 @@ class Block:
         """
         Returns (bytes): bytes representing the object.
         """
-        txs = self.txs
-        txns_list_serialized = []
+        txs = []
         for txn in self.txs:
-            txns_list_serialized.append(txn.__dict__)
-        self.txs = txns_list_serialized
-        obj_str = json.dumps(self.__dict__)
-        self.txs = txs
-        return b'BLK' + obj_str.encode()
+            txs.append(txn.serialize())
+        obj_list = [txs, self.depth, self.parent_block_id, self.creator_state, self.block_id, self.SEQ, self.creator_id]
+        obj_bytes = cbor.dumps(obj_list)
+        return b'BLK' + obj_bytes
 
     @staticmethod
     def unserialize(msg):
@@ -217,19 +220,20 @@ class Block:
         Returns:
              Block: original Block instance.
         """
-        d = json.loads(msg[3:])
+        obj_list = cbor.loads(msg[3:])
+
         obj = Block.__new__(Block)
-        for key, value in d.items():
-            if key == 'txs':
-                txs = []
-                for txn in value:
-                    txn_obj = Transaction.__new__(Transaction)
-                    for key1, value1 in txn.items():
-                        setattr(txn_obj, key1, value1)
-                    txs.append(txn_obj)
-                setattr(obj, key, txs)
-            else:
-                setattr(obj, key, value)
+        setattr(obj, 'creator_id', obj_list.pop())
+        setattr(obj, 'SEQ', obj_list.pop())
+        setattr(obj, 'block_id', obj_list.pop())
+        setattr(obj, 'creator_state', obj_list.pop())
+        setattr(obj, 'parent_block_id', obj_list.pop())
+        setattr(obj, 'depth', obj_list.pop())
+        txs = []
+        for txn in obj_list.pop():
+            txs.append(Transaction.unserialize(txn))
+        setattr(obj, 'txs', txs)
+        logging.debug(obj.__dict__)
         return obj
 
 
@@ -262,8 +266,9 @@ class Transaction:
         """
         Returns (bytes): bytes representing the object.
         """
-        obj_str = json.dumps(self.__dict__)
-        return b'TXN' + obj_str.encode()
+        obj_list = [self.content, self.txn_id, self.SEQ, self.creator_id]
+        obj_bytes = cbor.dumps(obj_list)
+        return b'TXN' + obj_bytes
 
     @staticmethod
     def unserialize(msg):
@@ -274,10 +279,13 @@ class Transaction:
         Returns:
              Transaction: original Transaction instance.
         """
-        d = json.loads(msg[3:])
+        obj_list = cbor.loads(msg[3:])
         obj = Transaction.__new__(Transaction)
-        for key, value in d.items():
-            setattr(obj, key, value)
+        setattr(obj, 'creator_id', obj_list.pop())
+        setattr(obj, 'SEQ', obj_list.pop())
+        setattr(obj, 'txn_id', obj_list.pop())
+        setattr(obj, 'content', obj_list.pop())
+        logging.debug(obj.__dict__)
         return obj
 
 
@@ -294,8 +302,7 @@ class PingMessage:
         """
         Returns (bytes): bytes representing the object.
         """
-        obj_str = json.dumps(self.__dict__)
-        return b'PIN' + obj_str.encode()
+        return b'PIN' + cbor.dumps(self.time)
 
     @staticmethod
     def unserialize(msg):
@@ -306,10 +313,10 @@ class PingMessage:
         Returns:
              PingMessage: original PingMessage instance.
         """
-        d = json.loads(msg[3:])
+        time = cbor.loads(msg[3:])
         obj = PingMessage.__new__(PingMessage)
-        for key, value in d.items():
-            setattr(obj, key, value)
+        setattr(obj, 'time', time)
+        logging.debug(obj.__dict__)
         return obj
 
 
@@ -326,8 +333,7 @@ class PongMessage:
         """
         Returns (bytes): bytes representing the object.
         """
-        obj_str = json.dumps(self.__dict__)
-        return b'PON' + obj_str.encode()
+        return b'PON' + cbor.dumps(self.time)
 
     @staticmethod
     def unserialize(msg):
@@ -338,8 +344,8 @@ class PongMessage:
         Returns:
              PongMessage: original PongMessage instance.
         """
-        d = json.loads(msg[3:])
+        time = cbor.loads(msg[3:])
         obj = PongMessage.__new__(PongMessage)
-        for key, value in d.items():
-            setattr(obj, key, value)
+        setattr(obj, 'time', time)
+        logging.debug(obj.__dict__)
         return obj
