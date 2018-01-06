@@ -1,4 +1,5 @@
-"""This module computes the limit of the RPS rate for different cluster sizes and then plots the results."""
+"""This module computes the limit of the RPS rate for different cluster sizes and then plots the results.
+Note: The test is based on local running nodes."""
 
 import os
 import shutil
@@ -13,7 +14,7 @@ from matplotlib.ticker import MaxNLocator
 
 
 cluster_size = 3
-cluster_size_max = 10
+cluster_size_max = 7
 
 RPS_MAX = []
 
@@ -68,8 +69,8 @@ def compute_rps_limit(c_size):
     path = os.path.dirname(os.path.abspath(__file__)) + '/pichain_performance_automated.py'
     performance_proc = NodeProcess("performance node", path)
 
-    # sleep_time = 10000/step_size*running_time_per_RPS
-    time.sleep(100)
+    # sleep_time = 10000/step_size*running_time_per_RPS*try_count_per_RPS
+    time.sleep(500)
 
     # terminate processes
     for node_proc in db_procs:

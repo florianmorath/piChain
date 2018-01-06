@@ -24,9 +24,10 @@ txn_count = 0
 # Keeps track of number of seconds the script is running
 iterations = 0
 # small commit delay is allowed in last round (given in seconds)
-# note: this will still lead to a correct result because even though the tolerance gives the algorithm more time to
-# commit, the number of transactions send per second is not affected by the tolerance.
-tolerance = 0.1
+tolerance = 0.05
+# try count per RPS
+try_count_per_RPS = 5
+current_try_count = 0
 
 
 class Connection(LineReceiver):
@@ -65,7 +66,8 @@ class Connection(LineReceiver):
         # verify that all txns have been committed
         if txn_count == RPS * running_time_per_RPS:
             # update global variables and restart process
-            RPS += step_size
+            if current_try_count % try_count_per_RPS == 0:
+                RPS += step_size
             txn_count = 0
             self.send_txns()
         else:
