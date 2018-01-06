@@ -5,10 +5,11 @@ import shutil
 import logging
 import signal
 import time
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
 from sys import stdout
 from subprocess import PIPE, Popen
+
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 
 
 cluster_size = 3
@@ -62,11 +63,13 @@ def compute_rps_limit(c_size):
         time.sleep(0.1)
 
     time.sleep(1)
+
     # start automated performance test process
     path = os.path.dirname(os.path.abspath(__file__)) + '/pichain_performance_automated.py'
     performance_proc = NodeProcess("performance node", path)
 
-    time.sleep(120)
+    # sleep_time = 10000/step_size*running_time_per_RPS
+    time.sleep(100)
 
     # terminate processes
     for node_proc in db_procs:

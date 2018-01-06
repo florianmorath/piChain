@@ -1,7 +1,6 @@
 """This module defines the representation of all objects that need to be sent over the network and thus need to be
 serialized and unserialized."""
 
-import logging
 import cbor
 
 
@@ -57,7 +56,6 @@ class PaxosMessage:
         setattr(obj, 'supp_block', obj_list.pop())
         setattr(obj, 'com_block', obj_list.pop())
         setattr(obj, 'last_committed_block', obj_list.pop())
-        logging.debug(obj.__dict__)
         return obj
 
 
@@ -88,7 +86,6 @@ class RequestBlockMessage:
         block_id = cbor.loads(msg[3:])
         obj = RequestBlockMessage.__new__(RequestBlockMessage)
         setattr(obj, 'block_id', block_id)
-        logging.debug(obj.__dict__)
         return obj
 
 
@@ -125,7 +122,6 @@ class RespondBlockMessage:
             blocks.append(Block.unserialize(b))
         obj = RespondBlockMessage.__new__(RespondBlockMessage)
         setattr(obj, 'blocks', blocks)
-        logging.debug(obj.__dict__)
         return obj
 
 
@@ -156,7 +152,6 @@ class AckCommitMessage:
         block_id = cbor.loads(msg[3:])
         obj = AckCommitMessage.__new__(AckCommitMessage)
         setattr(obj, 'block_id', block_id)
-        logging.debug(obj.__dict__)
         return obj
 
 
@@ -233,7 +228,6 @@ class Block:
         for txn in obj_list.pop():
             txs.append(Transaction.unserialize(txn))
         setattr(obj, 'txs', txs)
-        logging.debug(obj.__dict__)
         return obj
 
 
@@ -285,7 +279,6 @@ class Transaction:
         setattr(obj, 'SEQ', obj_list.pop())
         setattr(obj, 'txn_id', obj_list.pop())
         setattr(obj, 'content', obj_list.pop())
-        logging.debug(obj.__dict__)
         return obj
 
 
@@ -316,7 +309,6 @@ class PingMessage:
         time = cbor.loads(msg[3:])
         obj = PingMessage.__new__(PingMessage)
         setattr(obj, 'time', time)
-        logging.debug(obj.__dict__)
         return obj
 
 
@@ -347,5 +339,4 @@ class PongMessage:
         time = cbor.loads(msg[3:])
         obj = PongMessage.__new__(PongMessage)
         setattr(obj, 'time', time)
-        logging.debug(obj.__dict__)
         return obj

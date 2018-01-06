@@ -14,16 +14,18 @@ from twisted.protocols.basic import LineReceiver
 
 
 # Initial requests per second rate
-RPS = 4000
+RPS = 2000
 # Step size in which RPS is increased
-step_size = 500
+step_size = 1000
 # number of seconds transactions are send at a specific RPS rate
 running_time_per_RPS = 10
 # Keeps track of how many transactions have been committed
 txn_count = 0
 # Keeps track of number of seconds the script is running
 iterations = 0
-# small tolerance is allowed
+# small commit delay is allowed in last round (given in seconds)
+# note: this will still lead to a correct result because even though the tolerance gives the algorithm more time to
+# commit, the number of transactions send per second is not affected by the tolerance.
 tolerance = 0.1
 
 
@@ -39,7 +41,7 @@ class Connection(LineReceiver):
     def connectionMade(self):
         self.send_txns()
 
-    def verify_txns_committed(self):
+    def timeout_over(self):
         """Verify that all transactions have been committed. If not stop, else initialize another round with increased
         RPS rate."""
         global iterations
@@ -48,23 +50,33 @@ class Connection(LineReceiver):
 
         iterations += 1
         if iterations % running_time_per_RPS == 0:
-            # verify that all txns have been committed
-            if txn_count >= RPS*running_time_per_RPS*(1-tolerance):
-                # update global variables and restart process
-                RPS += step_size
-                txn_count = 0
-                self.send_txns()
+            # check if all txns have been committed, if not wait some tolerance time and try again
+            if txn_count != RPS * running_time_per_RPS:
+                deferLater(reactor, tolerance, self.verify_txns_committed)
             else:
-                print(txn_count)
-                print('performance test finished')
-                print('piChain can handle %s RPS' % str(RPS-step_size))
+                self.verify_txns_committed()
         else:
             self.send_txns()
+
+    def verify_txns_committed(self):
+        global txn_count
+        global RPS
+
+        # verify that all txns have been committed
+        if txn_count == RPS * running_time_per_RPS:
+            # update global variables and restart process
+            RPS += step_size
+            txn_count = 0
+            self.send_txns()
+        else:
+            print(txn_count)
+            print('performance test finished')
+            print('piChain can handle %s RPS' % str(RPS - step_size))
 
     def send_txns(self):
         """Initiates the process of transactions beeing send."""
         self.send_batch(iterations)
-        deferLater(reactor, 1, self.verify_txns_committed)
+        deferLater(reactor, 1, self.timeout_over)
 
     def send_batch(self, i):
         """Sends a predefined number (= RPS) of transactions as a batch to the node."""
