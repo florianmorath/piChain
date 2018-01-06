@@ -46,7 +46,7 @@ class Connection(LineReceiver):
 
         # init max message size to 10 Megabyte
         self.MAX_LENGTH = 10000000
-        self.delimiter = b'\r\n\n'
+        self.delimiter = b'/r/n'
 
     def connectionMade(self):
         """Called once a connection with another node has been made."""

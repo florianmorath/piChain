@@ -66,6 +66,7 @@ class Node(ConnectionManager):
         expected_rtt (float): based on this rtt the timeouts are computed.
         slow_timeout (float): fix patience of a slow node (u.a.r only set once).
         n (int): total numberof nodes.
+        retry_commit_timeout_queued (bool): is there a timeout in queue that will retry to commit.
     """
     def __init__(self, node_index, peers_dict):
 
@@ -106,6 +107,7 @@ class Node(ConnectionManager):
         self.rtts = {}
         self.expected_rtt = 1
         self.slow_timeout = None
+        self.retry_commit_timeout_queued = False
 
         self.n = len(self.peers)
 
@@ -636,6 +638,7 @@ class Node(ConnectionManager):
 
     def start_commit_process(self):
         """Commit `self.current_committable_block`."""
+        self.retry_commit_timeout_queued = False
 
         if self.c_current_committable_block.block_id in self.blocktree.committed_blocks:
             # this block has already been committed
@@ -674,7 +677,9 @@ class Node(ConnectionManager):
         elif self.state == QUICK and self.c_commit_running:
             # try to commit block later
             logger.debug('commit is already running, try to commit later')
-            deferLater(self.reactor, 2 * self.expected_rtt + MAX_COMMIT_TIME, self.start_commit_process)
+            if not self.retry_commit_timeout_queued:
+                deferLater(self.reactor, 2 * self.expected_rtt + MAX_COMMIT_TIME, self.start_commit_process)
+                self.retry_commit_timeout_queued = True
 
     def readjust_timeout(self):
         """Is called if `new_txs` changed and thus the `oldest_txn` may be removed."""
