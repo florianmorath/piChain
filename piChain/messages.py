@@ -160,7 +160,7 @@ class Block:
 
     Args:
         creator_id (int): id of the node that created the block.
-        parent_block_id (Optional[int]): id of parent block.
+        parent_block_id (:obj:`int`, optional): id of parent block.
         txs (list): list of Transaction instances.
         counter (int): used to define unqiue sequence number.
 
@@ -283,7 +283,7 @@ class Transaction:
 
 
 class PingMessage:
-    """"Is sent to estimate RTT.
+    """Is sent to estimate RTT.
 
     Args:
         time (float): timestamp marking the start.
@@ -313,7 +313,7 @@ class PingMessage:
 
 
 class PongMessage:
-    """"Is sent to estimate RTT.
+    """Is sent to estimate RTT.
 
     Args:
         time (float): timestamp that was received in the PingMessage.

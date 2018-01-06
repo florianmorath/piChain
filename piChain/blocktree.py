@@ -18,7 +18,8 @@ class Blocktree:
     """Tree of blocks.
 
     Args:
-          node_index (int): index of node owning this blocktree (to avoid concurrency problems with mult. local nodes).
+          node_index (int): index of node owning this blocktree (to avoid concurrency problems with multiple local
+            nodes).
 
     Attributes:
         genesis (Block): the genesis block (adjusted over time to safe memory).
@@ -76,10 +77,10 @@ class Blocktree:
 
         Args:
             block_a (Block): First block.
-            block_b (Block: Second block.
+            block_b (Block): Second block.
 
         Returns:
-            bool: True if `block_a` is ancestor of `block_b.
+            bool: True if `block_a` is ancestor of `block_b`.
 
         """
         b = block_b
@@ -97,7 +98,7 @@ class Blocktree:
             block_b (Block): Second block.
 
         Returns:
-            Block: common ancestor of `block_a` and `block_b.
+            Block: common ancestor of `block_a` and `block_b`.
         """
         while (block_a != self.genesis or block_b != self.genesis) and block_a != block_b:
             if block_a.depth > block_b.depth:

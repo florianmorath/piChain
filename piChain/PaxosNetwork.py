@@ -26,7 +26,7 @@ class Connection(LineReceiver):
     i.e each line that's received becomes a callback to the method `lineReceived`.
 
     Note: We always serialize objects to a JSON formatted str and encode it as a bytes object with utf-8 encoding
-        before sending it to the other side.
+    before sending it to the other side.
 
     Args:
         factory (ConnectionManager): Twisted Factory used to keep a shared state among multiple connections.
@@ -49,9 +49,11 @@ class Connection(LineReceiver):
         self.delimiter = b'\r\n\n'
 
     def connectionMade(self):
+        """Called once a connection with another node has been made."""
         logger.debug('Connected to %s.', str(self.transport.getPeer()))
 
     def connectionLost(self, reason=connectionDone):
+        """Called once a connection with another node has been lost."""
         logger.debug('Lost connection to %s with id %s: %s',
                       str(self.transport.getPeer()), self.peer_node_id, reason.getErrorMessage())
 
@@ -144,13 +146,13 @@ class ConnectionManager(Factory):
     """Keeps a consistent state among multiple `Connection` instances. Represents a node with a unique `node_id`.
 
     Attributes:
-        peers_connection (dict: String->Connection): The key represents the node_id and the value the Connection to the
-            node with this node_id.
+        peers_connection (dict): Maps from str to Connection. The key represents the node_id and the value the
+            Connection to the node with this node_id.
         id (int): unique identifier of this factory which represents a node.
-        message_callback (Callable with signature (msg_type, data, sender: Connection)): Received lines are delegated
+        message_callback (Callable): signature (msg_type, data, sender: Connection). Received lines are delegated
             to this callback if they are not handled inside Connection itself.
         reconnect_loop (LoopingCall): keeps trying to connect to peers if connection to at least one is lost.
-        peers (dict): stores the for each node an ip address and port
+        peers (dict): stores the for each node an ip address and port.
         reactor (IReactor): The Twisted reactor event loop waits on and demultiplexes events and dispatches them to
             waiting event handlers. Must be parametrized for testing purpose (default = global reactor).
     """

@@ -37,7 +37,7 @@ if not TESTING:
 class Node(ConnectionManager):
     """This class represents a paxos node. It is a subclass of the ConnectionManager class defined in the networking
     module. This allows to directly call functions like broadcast and respond from the networking module and to override
-    the 'receive_...' methods which are called in the networking module based on the type of the message.
+    the receive-methods which are called in the networking module based on the type of the message.
 
     Args:
         node_index (int): the index of this node into the peers dictionary. The entry defines its ip address and port.
@@ -62,7 +62,7 @@ class Node(ConnectionManager):
         c_commit_running (bool): True if a commit currently running.
         c_current_committable_block (Block): block to still be committed
         tx_committed (Callable): method given by app service that is called once a transaction has been committed.
-        rtts (dict): peer_node_id -> RTT. Used to estimate expected round trip time.
+        rtts (dict): Mapping from peer_node_id to RTT. Used to estimate expected round trip time.
         expected_rtt (float): based on this rtt the timeouts are computed.
         slow_timeout (float): fix patience of a slow node (u.a.r only set once).
         n (int): total numberof nodes.
@@ -316,7 +316,7 @@ class Node(ConnectionManager):
 
     def receive_request_blocks_message(self, req, sender):
         """A node is missing a block. Send him the missing block if node has it. Also send him the five ancestors
-         of the missing block s.t he can recover faster in case he is missing more blocks.
+        of the missing block s.t he can recover faster in case he is missing more blocks.
 
         Args:
             req (RequestBlockMessage): Message that requests a missing block.
