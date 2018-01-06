@@ -62,7 +62,13 @@ Transactions can be committed by calling `make_txn('command')` on a Node instanc
 node.make_txn('command')
 ```
 ## More information
-- There is a distributed database implementation in the examples folder to demonstrate an application of the pichain package. 
+- There is a distributed database implementation in the examples folder to demonstrate an application of the piChain package. 
+- To API documentation can be build using:
+```
+pip install sphinx
+cd docs
+make html
+```
 
 ## Publications
 - [piChain: When a Blockchain meets Paxos](https://www.tik.ee.ethz.ch/file/14b0ed803c27d585cc06ecd91164c48a/piChain.pdf)
