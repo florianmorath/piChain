@@ -22,7 +22,7 @@ cd piChain
 pip install -r requirements.txt
 python setup.py install 
 ```
-note: before running `pip install -r requirements.txt` you need to have a leveldb instance installed. The installation process depends on the OS. For macOS do the following:
+Note: before running `pip install -r requirements.txt` you need to have a leveldb instance installed. The installation process depends on the OS. For macOS do the following:
 ```
 brew install leveldb
 CFLAGS='-mmacosx-version-min=10.7 -stdlib=libc++' pip install --no-use-wheel plyvel
@@ -61,6 +61,10 @@ Transactions can be committed by calling `make_txn('command')` on a Node instanc
 ```python
 node.make_txn('command')
 ```
+
+## Performance
+![pichain performance](docs/images/plot_average_pichain.png "RPS vs Cluster Size")
+
 ## More information
 - There is a distributed database implementation in the examples folder to demonstrate an application of the piChain package. 
 - To API documentation can be build using:
