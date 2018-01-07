@@ -462,6 +462,9 @@ class Node(ConnectionManager):
             block (Block): Block to be committed.
 
         """
+        if block.block_id in self.blocktree.committed_blocks:
+            return
+
         # make sure block is reachable
         if not self.reach_genesis_block(block):
             return
@@ -678,8 +681,8 @@ class Node(ConnectionManager):
             # try to commit block later
             logger.debug('commit is already running, try to commit later')
             if not self.retry_commit_timeout_queued:
-                deferLater(self.reactor, 2 * self.expected_rtt + MAX_COMMIT_TIME, self.start_commit_process)
                 self.retry_commit_timeout_queued = True
+                deferLater(self.reactor, 2 * self.expected_rtt + MAX_COMMIT_TIME, self.start_commit_process)
 
     def readjust_timeout(self):
         """Is called if `new_txs` changed and thus the `oldest_txn` may be removed."""

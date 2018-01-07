@@ -46,7 +46,7 @@ class Connection(LineReceiver):
 
         # init max message size to 10 Megabyte
         self.MAX_LENGTH = 10000000
-        self.delimiter = b'/r/n'
+        self.delimiter = b'/r/n/r'
 
     def connectionMade(self):
         """Called once a connection with another node has been made."""
@@ -211,7 +211,6 @@ class ConnectionManager(Factory):
             msg_type (str): 3 char description of message type.
         """
         logger.debug('broadcast: %s', msg_type)
-        logger.debug('time = %s', str(time.time()))
 
         # go over all connections in self.peers and call sendLine on them
         data = obj.serialize()
@@ -231,13 +230,11 @@ class ConnectionManager(Factory):
             sender (Connection): The connection between this node and the sender of the message.
         """
         logger.debug('respond')
-        logger.debug('time = %s', str(time.time()))
         data = obj.serialize()
         logger.debug('size = %s', str(sys.getsizeof(data)))
         sender.sendLine(data)
 
     def parse_msg(self, msg_type, msg, sender):
-        logger.debug('time = %s', str(time.time()))
 
         if msg_type != 'PON':
             logger.debug('parse_msg called with msg_type = %s', msg_type)
