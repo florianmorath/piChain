@@ -30,7 +30,7 @@ CFLAGS='-mmacosx-version-min=10.7 -stdlib=libc++' pip install --no-use-wheel ply
 
 ## Usage
 
-First one needs to setup the Node instances (each node represents a peer in the network): 
+First, one needs to setup the Node instances (each node represents a peer in the network):
 A Node constructor takes two arguments, a node index and a peers dictionary. The peers dictionary contains an (ip,port) pair for each node. With the `node_index` argument one can select which node from the peers dictionary is running "locally". 
 The `tx_committed` field of a Node instance is a callable that is called once a transaction has been committed. By calling `start_server()` on the Node instance the local node will try to connect to its peers. 
 Note: `start_server()` starts the twisted main loop. 
@@ -67,9 +67,10 @@ node.make_txn('command')
 
 ## More information
 - There is a distributed database implementation in the examples folder to demonstrate an application of the piChain package. 
-- To API documentation can be build using:
+- The API documentation can be build using:
 ```
 pip install sphinx
+pip install sphinxcontrib-napoleon
 cd docs
 make html
 ```

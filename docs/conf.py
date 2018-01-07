@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # piChain documentation build configuration file, created by
-# sphinx-quickstart on Sat Jan  6 17:44:13 2018.
+# sphinx-quickstart on Sun Jan  7 13:53:34 2018.
 #
 # This file is execfile()d with the current directory set to its
 # containing dir.
@@ -69,7 +69,7 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'source/modules.rst', 'source/piChain.rst']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
