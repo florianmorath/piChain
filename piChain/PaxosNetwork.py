@@ -4,7 +4,6 @@
 import logging
 import json
 import time
-import sys
 import struct
 
 from twisted.internet.protocol import Factory, connectionDone
@@ -56,7 +55,7 @@ class Connection(IntNStringReceiver):
     def connectionLost(self, reason=connectionDone):
         """Called once a connection with another node has been lost."""
         logger.debug('Lost connection to %s with id %s: %s',
-                      str(self.transport.getPeer()), self.peer_node_id, reason.getErrorMessage())
+                     str(self.transport.getPeer()), self.peer_node_id, reason.getErrorMessage())
 
         # remove peer_node_id from connection_manager.peers
         if self.peer_node_id is not None and self.peer_node_id in self.connection_manager.peers_connection:
@@ -200,7 +199,7 @@ class ConnectionManager(Factory):
         logger.debug('Connections: local node id = %s', str(self.id))
         for key, value in self.peers_connection.items():
             logger.debug('Connection from %s (%s) to %s (%s).',
-                          value.transport.getHost(), str(self.id), value.transport.getPeer(), value.peer_node_id)
+                         value.transport.getHost(), str(self.id), value.transport.getPeer(), value.peer_node_id)
             logger.debug('"""""""""""""""""')
 
     def broadcast(self, obj, msg_type):
@@ -232,7 +231,6 @@ class ConnectionManager(Factory):
         """
         logger.debug('respond')
         data = obj.serialize()
-        logger.debug('size = %s', str(sys.getsizeof(data)))
         sender.sendString(data)
 
     def parse_msg(self, msg_type, msg, sender):

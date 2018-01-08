@@ -10,7 +10,7 @@ setup(
    version='0.1dev',
    author='Florian Morath',
    author_email='morathflorian@gmail.com',
-   description=('A library which implements a fault-tolerant distributed state machine.'),
+   description='A library which implements a fault-tolerant distributed state machine.',
    license=LICENSE,
    packages=find_packages(),
 )
