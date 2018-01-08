@@ -13,7 +13,7 @@ from piChain.PaxosNetwork import ConnectionManager
 from piChain.blocktree import Blocktree
 from piChain.messages import PaxosMessage, Block, RequestBlockMessage, RespondBlockMessage, Transaction, \
     AckCommitMessage
-from piChain.config import ACCUMULATION_TIME, MAX_COMMIT_TIME, MAX_TXN_COUNT, TESTING
+from piChain.config import ACCUMULATION_TIME, MAX_COMMIT_TIME, MAX_TXN_COUNT, TESTING, RECOVERY_BLOCKS_COUNT
 
 
 # variables representing the state of a node
@@ -317,8 +317,9 @@ class Node(ConnectionManager):
         self.readjust_timeout()
 
     def receive_request_blocks_message(self, req, sender):
-        """A node is missing a block. Send him the missing block if node has it. Also send him the five ancestors
-        of the missing block s.t he can recover faster in case he is missing more blocks.
+        """A node is missing a block. Send him the missing block if we have it. Also send him a predefined number
+        (=RECOVERY_BLOCKS_COUNT given in config.py) of ancestors of the missing block s.t he can recover faster in case
+        he is missing more blocks.
 
         Args:
             req (RequestBlockMessage): Message that requests a missing block.
@@ -330,7 +331,7 @@ class Node(ConnectionManager):
             # add five ancestors to blocks
             b = self.blocktree.nodes.get(req.block_id)
             i = 0
-            while i < 5 and b is not None and b != self.blocktree.genesis:
+            while i < RECOVERY_BLOCKS_COUNT and b is not None and b != self.blocktree.genesis:
                 i = i + 1
                 b = self.blocktree.nodes.get(b.parent_block_id)
                 if b is not None and b != self.blocktree.genesis:

@@ -35,6 +35,13 @@ dependences: depends on transaction size.
 default = 7500 transactions (this is based on transactions that are of size = 200 bytes)
 """
 
+RECOVERY_BLOCKS_COUNT = 5
+"""int: Number of blocks send to a node if he is missing a block s.t he can recover after a crash or a partition. 
+
+dependences: depends on number of transactions send per second and how long crashed nodes are down. 
+default = 5
+"""
+
 #
 # Logging and Debug
 #
