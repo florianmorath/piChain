@@ -63,11 +63,15 @@ node.make_txn('command')
 ```
 
 ## Performance
-![pichain performance](docs/images/plot_average_pichain.png "RPS vs Cluster Size")
+This plot shows the benchmark results of how many Requests Per Second (RPS) piChain can handle for different cluster sizes. 
+<p align="center">
+  <img src="/docs/images/plot_average_pichain.png">
+</p>
+
 
 ## More information
 - There is a distributed database implementation in the examples folder to demonstrate an application of the piChain package. 
-- The API documentation can be build using:
+- The API documentation can be build as follows: (requires installation of the piChain package)
 ```
 pip install sphinx
 pip install sphinxcontrib-napoleon
