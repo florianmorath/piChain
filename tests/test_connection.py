@@ -40,19 +40,19 @@ class TestConnection(unittest.TestCase):
         """
         peer_node_id = '0'
         s = json.dumps({'nodeid': peer_node_id})
-        self.proto.lineReceived(b'HEL' + s.encode())
+        self.proto.stringReceived(b'HEL' + s.encode())
 
         self.assertEqual(self.proto.peer_node_id, peer_node_id)
         self.assertIn(peer_node_id, self.proto.connection_manager.peers)
 
-        self.assertEqual(b'ACK', self.transport.value()[:3])
+        self.assertEqual(b'ACK{"nodeid": "0"}', self.transport.value()[4:])
 
     def test_handshake_ack(self):
         """ Test receipt of a handshake acknowledgement message.
         """
         peer_node_id = '0'
         s = json.dumps({'nodeid': peer_node_id})
-        self.proto.lineReceived(b'ACK' + s.encode())
+        self.proto.stringReceived(b'ACK' + s.encode())
 
         self.assertEqual(self.proto.peer_node_id, peer_node_id)
         self.assertIn(peer_node_id, self.proto.connection_manager.peers)
@@ -66,7 +66,7 @@ class TestConnection(unittest.TestCase):
 
         rbm = RequestBlockMessage(3)
         s = rbm.serialize()
-        self.proto.lineReceived(s)
+        self.proto.stringReceived(s)
 
         self.assertTrue(self.node.receive_request_blocks_message.called)
         obj = self.node.receive_request_blocks_message.call_args[0][0]
@@ -80,7 +80,7 @@ class TestConnection(unittest.TestCase):
 
         txn = Transaction(0, 'command1', 1)
         s = txn.serialize()
-        self.proto.lineReceived(s)
+        self.proto.stringReceived(s)
 
         self.assertTrue(self.node.receive_transaction.called)
         obj = self.node.receive_transaction.call_args[0][0]
@@ -96,7 +96,7 @@ class TestConnection(unittest.TestCase):
         txn2 = Transaction(0, 'command2', 2)
         block = Block(0, 0, [txn1, txn2], 1)
         s = block.serialize()
-        self.proto.lineReceived(s)
+        self.proto.stringReceived(s)
 
         self.assertTrue(self.node.receive_block.called)
         obj = self.node.receive_block.call_args[0][0]
@@ -118,7 +118,7 @@ class TestConnection(unittest.TestCase):
         rsb = RespondBlockMessage([block, block2])
 
         s = rsb.serialize()
-        self.proto.lineReceived(s)
+        self.proto.stringReceived(s)
 
         self.assertTrue(self.node.receive_respond_blocks_message.called)
         obj = self.node.receive_respond_blocks_message.call_args[0][0]
@@ -142,7 +142,7 @@ class TestConnection(unittest.TestCase):
         pam.last_committed_block = block2.block_id
 
         s = pam.serialize()
-        self.proto.lineReceived(s)
+        self.proto.stringReceived(s)
 
         self.assertTrue(self.node.receive_paxos_message.called)
         obj = self.node.receive_paxos_message.call_args[0][0]
@@ -157,7 +157,7 @@ class TestConnection(unittest.TestCase):
 
         pong = PongMessage(time.time())
         s = pong.serialize()
-        self.proto.lineReceived(s)
+        self.proto.stringReceived(s)
 
         self.assertTrue(self.node.receive_pong_message.called)
 
@@ -167,9 +167,10 @@ class TestConnection(unittest.TestCase):
         timestamp = time.time()
         ping = PingMessage(timestamp)
         s = ping.serialize()
-        self.proto.lineReceived(s)
+        self.proto.stringReceived(s)
 
-        obj = PongMessage.unserialize(self.proto.transport.value()[:-2])
+        print(self.proto.transport.value())
+        obj = PongMessage.unserialize(self.proto.transport.value()[4:])
         self.assertEqual(obj.time, timestamp)
 
     def test_broadcast(self):
@@ -181,11 +182,11 @@ class TestConnection(unittest.TestCase):
 
         # peer 1 connects/sends hello handshake
         s = json.dumps({'nodeid': '1'})
-        self.proto.lineReceived(b'HEL' + s.encode())
+        self.proto.stringReceived(b'HEL' + s.encode())
 
         # peer 2 connects/sends hello handshake
         s = json.dumps({'nodeid': '2'})
-        proto2.lineReceived(b'HEL' + s.encode())
+        proto2.stringReceived(b'HEL' + s.encode())
 
         # clear the transport
         self.proto.transport.clear()
@@ -194,9 +195,9 @@ class TestConnection(unittest.TestCase):
         rbm = RequestBlockMessage(3)
         self.node.broadcast(rbm, 'RQB')
 
-        obj = RequestBlockMessage.unserialize(self.proto.transport.value()[:-2])
+        obj = RequestBlockMessage.unserialize(self.proto.transport.value()[4:])
 
-        obj2 = RequestBlockMessage.unserialize(proto2.transport.value()[:-2])
+        obj2 = RequestBlockMessage.unserialize(proto2.transport.value()[4:])
 
         self.assertEqual(rbm.block_id, obj.block_id)
         self.assertEqual(rbm.block_id, obj2.block_id)
@@ -205,6 +206,6 @@ class TestConnection(unittest.TestCase):
         rbm = RequestBlockMessage(3)
         self.node.respond(rbm, self.proto)
 
-        obj = RequestBlockMessage.unserialize(self.proto.transport.value()[:-2])
+        obj = RequestBlockMessage.unserialize(self.proto.transport.value()[4:])
 
         self.assertEqual(rbm.block_id, obj.block_id)

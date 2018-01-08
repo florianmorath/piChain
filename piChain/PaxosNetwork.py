@@ -5,9 +5,10 @@ import logging
 import json
 import time
 import sys
+import struct
 
 from twisted.internet.protocol import Factory, connectionDone
-from twisted.protocols.basic import LineReceiver
+from twisted.protocols.basic import IntNStringReceiver
 from twisted.internet.endpoints import TCP4ClientEndpoint, TCP4ServerEndpoint, connectProtocol
 from twisted.internet import reactor, task
 from twisted.internet.task import LoopingCall
@@ -21,12 +22,9 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-class Connection(LineReceiver):
-    """This class keeps track of information about a connection with another node. It is a subclass of `LineReceiver`
-    i.e each line that's received becomes a callback to the method `lineReceived`.
-
-    Note: We always serialize objects to a JSON formatted str and encode it as a bytes object with utf-8 encoding
-    before sending it to the other side.
+class Connection(IntNStringReceiver):
+    """This class keeps track of information about a connection with another node. It is a subclass of
+    `IntNStringReceiver` i.e each complete message that's received becomes a callback to the method `stringReceived`.
 
     Args:
         factory (ConnectionManager): Twisted Factory used to keep a shared state among multiple connections.
@@ -38,6 +36,10 @@ class Connection(LineReceiver):
         peer_node_id (str): Unique predefined id of the node on the other side of the connection.
         lc_ping (LoopingCall): keeps sending ping messages to other nodes to estimate correct round trip times.
     """
+    # little endian, unsigned int
+    structFormat = '<I'
+    prefixLength = struct.calcsize(structFormat)
+
     def __init__(self, factory):
         self.connection_manager = factory
         self.node_id = str(self.connection_manager.id)
@@ -46,7 +48,6 @@ class Connection(LineReceiver):
 
         # init max message size to 10 Megabyte
         self.MAX_LENGTH = 10000000
-        self.delimiter = b'/r/n/r'
 
     def connectionMade(self):
         """Called once a connection with another node has been made."""
@@ -68,16 +69,16 @@ class Connection(LineReceiver):
         if self.lc_ping.running:
             self.lc_ping.stop()
 
-    def lineReceived(self, line):
-        """Callback that is called as soon as a line is available.
+    def stringReceived(self, string):
+        """Callback that is called as soon as a complete message is available.
 
         Args:
-            line (bytes): The line received. A bytes instance containing a JSON document.
+            string (bytes): The string received.
         """
-        msg_type = line[:3].decode()
+        msg_type = string[:3].decode()
 
         if msg_type == 'HEL':
-            msg = json.loads(line[3:])
+            msg = json.loads(string[3:])
             # handle handshake message
             peer_node_id = msg['nodeid']
             logger.debug('Handshake from %s with peer_node_id = %s ', str(self.transport.getPeer()), peer_node_id)
@@ -94,7 +95,7 @@ class Connection(LineReceiver):
             self.send_hello_ack()
 
         elif msg_type == 'ACK':
-            msg = json.loads(line[3:])
+            msg = json.loads(string[3:])
             # handle handshake acknowledgement
             peer_node_id = msg['nodeid']
             logger.debug('Handshake ACK from %s with peer_node_id = %s ', str(self.transport.getPeer()), peer_node_id)
@@ -108,13 +109,13 @@ class Connection(LineReceiver):
                     self.lc_ping.start(20, now=True)
 
         elif msg_type == 'PIN':
-            obj = PingMessage.unserialize(line)
+            obj = PingMessage.unserialize(string)
             pong = PongMessage(obj.time)
             data = pong.serialize()
-            self.sendLine(data)
+            self.sendString(data)
 
         else:
-            self.connection_manager.message_callback(msg_type, line, self)
+            self.connection_manager.message_callback(msg_type, string, self)
 
     def send_hello(self):
         """ Send hello/handshake message s.t other node gets to know this node.
@@ -123,20 +124,20 @@ class Connection(LineReceiver):
         s = json.dumps({'nodeid': self.node_id})
 
         # str.encode() returns encoded version of string as a bytes object (utf-8 encoding)
-        self.sendLine(b'HEL' + s.encode())
+        self.sendString(b'HEL' + s.encode())
 
     def send_hello_ack(self):
         """ Send hello/handshake acknowledgement message s.t other node also has a chance to add connection.
         """
         s = json.dumps({'nodeid': self.node_id})
-        self.sendLine(b'ACK' + s.encode())
+        self.sendString(b'ACK' + s.encode())
 
     def send_ping(self):
         """Send ping message to estimate RTT.
         """
         ping = PingMessage(time.time())
         data = ping.serialize()
-        self.sendLine(data)
+        self.sendString(data)
 
     def rawDataReceived(self, data):
         pass
@@ -149,7 +150,7 @@ class ConnectionManager(Factory):
         peers_connection (dict): Maps from str to Connection. The key represents the node_id and the value the
             Connection to the node with this node_id.
         id (int): unique identifier of this factory which represents a node.
-        message_callback (Callable): signature (msg_type, data, sender: Connection). Received lines are delegated
+        message_callback (Callable): signature (msg_type, data, sender: Connection). Received strings are delegated
             to this callback if they are not handled inside Connection itself.
         reconnect_loop (LoopingCall): keeps trying to connect to peers if connection to at least one is lost.
         peers (dict): stores the for each node an ip address and port.
@@ -212,10 +213,10 @@ class ConnectionManager(Factory):
         """
         logger.debug('broadcast: %s', msg_type)
 
-        # go over all connections in self.peers and call sendLine on them
+        # go over all connections in self.peers and call sendString on them
         data = obj.serialize()
         for k, v in self.peers_connection.items():
-            v.sendLine(data)
+            v.sendString(data)
 
         if msg_type == 'TXN':
             self.receive_transaction(obj)
@@ -232,7 +233,7 @@ class ConnectionManager(Factory):
         logger.debug('respond')
         data = obj.serialize()
         logger.debug('size = %s', str(sys.getsizeof(data)))
-        sender.sendLine(data)
+        sender.sendString(data)
 
     def parse_msg(self, msg_type, msg, sender):
 

@@ -46,7 +46,7 @@ class IntegrationScenarios:
             connection = node.peers_connection.get('0')
             if connection is not None:
                 logging.debug('txn send to node 0')
-                connection.sendLine(txn.serialize())
+                connection.sendString(txn.serialize())
 
     @staticmethod
     def scenario2(node):
@@ -395,13 +395,13 @@ class IntegrationScenarios:
             # do not broadcast to node 4
 
             logging.debug('broadcast: %s', msg_type)
-            # go over all connections in self.peers_connection and call sendLine on them
+            # go over all connections in self.peers_connection and call sendString on them
             for k, v in self.peers_connection.items():
                 if k == '4' and self.partitioned:
                     pass
                 else:
                     data = obj.serialize()
-                    v.sendLine(data)
+                    v.sendString(data)
 
         # if obj is a Transaction then the node also has to send it to itself
         if msg_type == 'TXN':
