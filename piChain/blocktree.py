@@ -34,7 +34,7 @@ class Blocktree:
         self.genesis = GENESIS
         self.head_block = GENESIS
         self.committed_block = GENESIS
-        self.committed_blocks = []
+        self.committed_blocks = [GENESIS.block_id]
         self.nodes = {}
         self.nodes.update({GENESIS.block_id: GENESIS})
         self.counter = 0

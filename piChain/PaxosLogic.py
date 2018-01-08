@@ -132,10 +132,11 @@ class Node(ConnectionManager):
         logger.debug('receive message type = %s', message.msg_type)
         if message.msg_type == 'TRY':
             # make sure last commited block of sender is also committed by this node
-            last_committed_block = self.get_block(message.last_committed_block)
-            if last_committed_block is None:
-                return
-            self.commit(last_committed_block)
+            if message.last_committed_block not in self.blocktree.committed_blocks:
+                last_committed_block = self.get_block(message.last_committed_block)
+                if last_committed_block is None:
+                    return
+                self.commit(last_committed_block)
 
             # make sure that message.new_block is descendant of last committed block
             new_block = self.get_block(message.new_block)
