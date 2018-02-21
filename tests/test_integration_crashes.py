@@ -1,6 +1,6 @@
-"""Integration test: Test crash and recovery behavior of paxos nodes.
+"""Integration test: Test crash and recovery behavior of piChain nodes.
 
-Note: currently the tests only work locally and with ACCUMULATION_TIME = 0.1 because of timing reasons.
+Note: the tests only work locally and with ACCUMULATION_TIME = 0.1 because of timing reasons.
 """
 
 import time

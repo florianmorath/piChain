@@ -1,4 +1,4 @@
-"""This module shows how the pichain package can be used."""
+"""This module shows how the piChain package can be used."""
 
 import logging
 import argparse
@@ -6,7 +6,7 @@ import argparse
 from twisted.internet import reactor
 from twisted.internet.task import deferLater
 
-from piChain.PaxosLogic import Node
+from piChain import Node
 
 
 def tx_committed(commands):

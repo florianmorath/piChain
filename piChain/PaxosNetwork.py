@@ -152,7 +152,7 @@ class ConnectionManager(Factory):
         message_callback (Callable): signature (msg_type, data, sender: Connection). Received strings are delegated
             to this callback if they are not handled inside Connection itself.
         reconnect_loop (LoopingCall): keeps trying to connect to peers if connection to at least one is lost.
-        peers (dict): stores the for each node an ip address and port.
+        peers (dict): stores for each node an ip address and port.
         reactor (IReactor): The Twisted reactor event loop waits on and demultiplexes events and dispatches them to
             waiting event handlers. Must be parametrized for testing purpose (default = global reactor).
     """

@@ -1,8 +1,8 @@
-"""This module implements a distributed database as an example usage of the pichain package. It's a key-value storage
+"""This module implements a distributed database as an example usage of the piChain package. It's a key-value storage
 that can handle keys and values that are arbitrary byte arrays. Supported operations are put(key,value), get(key) and
 delete(key).
 
-note: If you want to delete the local database and the internal datastructure pichain uses delete the ~/.pichain
+note: If you want to delete the local database and the internal datastructure piChain uses delete the ~/.pichain
 directory.
 """
 
@@ -15,7 +15,7 @@ from twisted.internet.protocol import Factory, connectionDone
 from twisted.protocols.basic import LineReceiver
 from twisted.internet import reactor
 
-from piChain.PaxosLogic import Node
+from piChain import Node
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)

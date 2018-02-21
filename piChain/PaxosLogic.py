@@ -1,5 +1,5 @@
-"""This module defines the logic of the paxos algorithm.
-It implements the Node class which represents a paxos node and specifies how a paxos node should behave.
+"""This module defines the logic of the piChain algorithm.
+It implements the Node class which represents a piChain node and specifies how it should behave.
 """
 
 import random
@@ -35,7 +35,7 @@ if not TESTING:
 
 
 class Node(ConnectionManager):
-    """This class represents a paxos node. It is a subclass of the ConnectionManager class defined in the networking
+    """This class represents a piChain node. It is a subclass of the ConnectionManager class defined in the networking
     module. This allows to directly call functions like broadcast and respond from the networking module and to override
     the receive-methods which are called in the networking module based on the type of the message.
 
@@ -525,7 +525,7 @@ class Node(ConnectionManager):
             # reinitialize server variables
             self.s_supp_block = None
             self.s_prop_block = None
-            self.s_max_block_depth = 0  # self.blocktree.genesis
+            self.s_max_block_depth = 0
             self.c_commit_running = False
 
             # write changes to disk (delete s_max_block, s_prop_block and s_supp_block)

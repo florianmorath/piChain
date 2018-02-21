@@ -96,7 +96,7 @@ class RespondBlockMessage:
         blocks (list): list containing the missing blocks.
     """
     def __init__(self, blocks):
-        self.blocks = blocks  # the last 5 blocks starting from block the node misses
+        self.blocks = blocks
 
     def serialize(self):
         """
