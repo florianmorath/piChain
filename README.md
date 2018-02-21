@@ -35,7 +35,7 @@ A Node constructor takes two arguments, a node index and a peers dictionary. The
 The `tx_committed` field of a Node instance is a callable that is called once a transaction has been committed. By calling `start_server()` on the Node instance the local node will try to connect to its peers. 
 Note: `start_server()` starts the twisted main loop. 
 ```python
-from piChain.PaxosLogic import Node
+from piChain import Node
 
 def tx_committed(commands):
     """

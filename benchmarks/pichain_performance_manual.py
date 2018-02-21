@@ -1,4 +1,4 @@
-"""This module is used to test the performance of the pichain package. It connect to a database node instance and runs a
+"""This module is used to test the performance of the piChain package. It connect to a database node instance and runs a
 predefined number of seconds. Each second it sends a predefined number of transactions. After all transactions have been
 committed, the time elapsed is computed and printed to the standard output.
 

@@ -1,6 +1,6 @@
-"""This module is used to test the performance of the pichain package. It connects to a node instance and sends a
+"""This module is used to test the performance of the piChain package. It connects to a node instance and sends a
 predefined number of transactions per seconds to see how many RPS (Requests per second) can be handled. The RPS rate is
-increased automatically until pichain cannot handle it anymore.
+increased automatically until piChain cannot handle it anymore.
 
 Note: This script requires already running distributed_db processes (see module examples/distributed_db.py) where a
 process listens on (localhost: 8000) for connections.
