@@ -1,6 +1,6 @@
 """Integration test: Test crash and recovery behavior of piChain nodes.
 
-Note: the tests only work locally and with ACCUMULATION_TIME = 0.1 because of timing reasons.
+Note: run tests with default setting values in config.py.
 """
 
 import time
