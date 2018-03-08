@@ -81,3 +81,4 @@ make html
 
 ## Publications
 - [piChain: When a Blockchain meets Paxos](https://www.tik.ee.ethz.ch/file/14b0ed803c27d585cc06ecd91164c48a/piChain.pdf)
+- [Implementation of piChain](https://pub.tik.ee.ethz.ch/students/2017-HS/BA-2017-36.pdf)
