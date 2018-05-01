@@ -64,7 +64,7 @@ class Node(ConnectionManager):
         tx_committed (Callable): method given by app service that is called once a transaction has been committed.
         rtts (dict): Mapping from peer_node_id to RTT. Used to estimate expected round trip time.
         expected_rtt (float): based on this rtt the timeouts are computed.
-        slow_timeout (float): fix patience of a slow node (u.a.r only set once).
+        slow_timeout_backoff (float): fix additional timeout backoff of a slow node (u.a.r only set once).
         n (int): total numberof nodes.
         retry_commit_timeout_queued (bool): is there a timeout in queue that will retry to commit.
     """
@@ -106,7 +106,7 @@ class Node(ConnectionManager):
         # timeout/timing variables
         self.rtts = {}
         self.expected_rtt = 1
-        self.slow_timeout = None
+        self.slow_timeout_backoff = None
         self.retry_commit_timeout_queued = False
 
         self.n = len(self.peers)
@@ -615,13 +615,13 @@ class Node(ConnectionManager):
             patience = (1 + EPSILON) * self.expected_rtt
 
         else:
-            if self.slow_timeout is None:
-                patience = random.uniform((2. + EPSILON) * self.expected_rtt,
-                                          (2. + EPSILON) * self.expected_rtt +
-                                          self.n * self.expected_rtt * 0.5)
-                self.slow_timeout = patience
-            else:
-                patience = self.slow_timeout
+            # compute a random backoff time for each slow node and fix it. This ensures that only one slow node will
+            # create a block in expectation
+            if self.slow_timeout_backoff is None:
+                self.slow_timeout_backoff = random.uniform(0, self.n) * 0.5
+
+            patience = (2. + EPSILON) * self.expected_rtt + self.slow_timeout_backoff * self.expected_rtt
+
         return patience + ACCUMULATION_TIME
 
     def timeout_over(self, txn):
